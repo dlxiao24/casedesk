@@ -1,0 +1,315 @@
+// Case Desk — see case-desk-spec.md §3.
+// Postgres (Supabase). Enums are real Postgres enums.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id         String      @id @default(cuid())
+  email      String      @unique
+  name       String
+  role       Role        @default(COACH)
+  createdAt  DateTime    @default(now())
+  // Optional personal Anthropic key seam (§7.1). Never used in v1.
+  sessions   Session[]
+  ownedCases Case[]
+  coachCases CoachCase[]
+  casebooks  Casebook[]
+  invitesSent Invite[]   @relation("InviteSender")
+}
+
+enum Role {
+  ADMIN
+  COACH
+}
+
+/// Invite-only access (§2). An email must have a pending or accepted invite
+/// before its magic link is honoured.
+model Invite {
+  id         String    @id @default(cuid())
+  email      String    @unique
+  role       Role      @default(COACH)
+  invitedById String
+  invitedBy  User      @relation("InviteSender", fields: [invitedById], references: [id])
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+// ---------- Library ----------
+
+model Casebook {
+  id         String   @id @default(cuid())
+  title      String
+  school     String?
+  year       Int?
+  fileKey    String
+  /// "PDF" or "IMAGES" — an image set is normalised to a page sequence (§4.1).
+  sourceKind SourceKind @default(PDF)
+  /// For IMAGES sources: ordered storage keys, one per page.
+  imageKeys  String[]   @default([])
+  pageCount  Int
+  /// Extracted per-page text, indexed by page number: { "1": "...", "2": "..." }
+  pageText   Json?
+  /// Denormalised lowercase concatenation of pageText, so library search can
+  /// hit the casebook body without a JSON scan (§5).
+  searchText String?
+  /// Bytes stored, for the 1GB free-tier capacity warning (§10).
+  byteSize   Int      @default(0)
+  uploadedBy String
+  uploader   User     @relation(fields: [uploadedBy], references: [id])
+  createdAt  DateTime @default(now())
+  cases      Case[]
+}
+
+enum SourceKind {
+  PDF
+  IMAGES
+}
+
+model Case {
+  id         String   @id @default(cuid())
+  casebookId String?
+  casebook   Casebook? @relation(fields: [casebookId], references: [id], onDelete: Cascade)
+  title      String
+  startPage  Int?
+  endPage    Int?
+
+  caseType    CaseType
+  industry    String?
+  targetRound TargetRound?
+  format      CaseFormat @default(INTERVIEWER_LED)
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id])
+
+  // Attributes of the case itself, 1-5. Set by the owner only.
+  quantIntensity      Int?
+  creativityLoad      Int?
+  structureDifficulty Int?
+  ambiguity           Int?
+  dataDensity         Int?
+  overallDifficulty   Int?
+
+  /// Verdict on the case as a teaching tool, not a property of its content.
+  caseQuality Int?
+
+  notes     String?
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  sections   Section[]
+  sessions   Session[]
+  coachCases CoachCase[]
+
+  @@index([casebookId])
+  @@index([ownerId])
+}
+
+enum CaseType {
+  PROFITABILITY
+  MARKET_ENTRY
+  MA
+  GROWTH
+  PRICING
+  COST_REDUCTION
+  OPERATIONS
+  MARKET_SIZING
+  NEW_PRODUCT
+  OTHER
+}
+
+enum TargetRound {
+  SCREENING
+  FIRST_ROUND
+  FINAL_ROUND
+}
+
+enum CaseFormat {
+  INTERVIEWER_LED
+  INTERVIEWEE_LED
+}
+
+model Section {
+  id         String      @id @default(cuid())
+  caseId     String
+  case       Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  kind       SectionKind
+  label      String
+  order      Int
+  startPage  Int?
+  endPage    Int?
+  bodyText   String?
+  isSolution Boolean     @default(false)
+  targetMins Int?
+
+  @@index([caseId, order])
+}
+
+enum SectionKind {
+  PROMPT
+  CLARIFYING
+  STRUCTURE
+  EXHIBIT
+  MATH
+  BRAINSTORM
+  SYNTHESIS
+  SOLUTION
+  INTERVIEWER_GUIDE
+}
+
+/// One row per (coach, case). Readiness state plus private scratch notes.
+model CoachCase {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  state ReadinessState @default(UNREAD)
+
+  /// Private. Never shown to other coaches, never in candidate reports.
+  personalNotes String?
+
+  lastDeliveredAt DateTime?
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, caseId])
+  @@index([userId])
+}
+
+enum ReadinessState {
+  UNREAD
+  READ
+  PRACTICED
+  DELIVERED
+}
+
+// ---------- Sessions ----------
+
+model Candidate {
+  id        String    @id @default(cuid())
+  name      String
+  email     String?
+  cohort    String?
+  year      String?
+  notes     String?
+  archived  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  sessions  Session[]
+}
+
+model Session {
+  id          String    @id @default(cuid())
+  caseId      String
+  /// Deleting a casebook cascades to its cases and their sessions (§8.1).
+  case        Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  coachId     String
+  coach       User      @relation(fields: [coachId], references: [id])
+
+  status       SessionStatus @default(IN_PROGRESS)
+  startedAt    DateTime      @default(now())
+  endedAt      DateTime?
+  totalSeconds Int?
+
+  locked     Boolean   @default(false)
+  reopenedAt DateTime?
+  archived   Boolean   @default(false)
+
+  /// Unguessable, revocable public read-only link (§8).
+  shareToken String? @unique
+
+  scores       Score[]
+  sectionNotes SectionNote[]
+  takeaways    Takeaway[]
+  overallNote  String?
+  /// Report toggle: include the "Session record" appendix (§8). Default on.
+  includeRecord Boolean  @default(true)
+  /// Suppress the casebook source line in the report.
+  hideSource    Boolean  @default(false)
+  sharedAt      DateTime?
+
+  @@index([candidateId])
+  @@index([caseId])
+  @@index([coachId, status])
+}
+
+enum SessionStatus {
+  IN_PROGRESS
+  COMPLETE
+  ABANDONED
+}
+
+model SectionNote {
+  id           String  @id @default(cuid())
+  sessionId    String
+  session      Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sectionId    String
+  whatWasSaid  String  @default("")
+  feedback     String  @default("")
+  secondsSpent Int     @default(0)
+
+  @@unique([sessionId, sectionId])
+}
+
+model Score {
+  id        String    @id @default(cuid())
+  sessionId String
+  session   Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  dimension Dimension
+  value     Int
+
+  @@unique([sessionId, dimension])
+}
+
+enum Dimension {
+  STRUCTURE
+  QUANTITATIVE
+  JUDGMENT
+  SYNTHESIS
+  PRESENCE
+}
+
+model Takeaway {
+  id        String       @id @default(cuid())
+  sessionId String
+  session   Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  kind      TakeawayKind
+  rank      Int
+  text      String
+
+  @@unique([sessionId, kind, rank])
+}
+
+enum TakeawayKind {
+  CONTINUE
+  IMPROVE
+}
+
+// ---------- Phrase bank (powers non-AI feedback drafting) ----------
+
+model Phrase {
+  id        String       @id @default(cuid())
+  dimension Dimension
+  band      Band
+  kind      TakeawayKind
+  text      String
+  active    Boolean      @default(true)
+
+  @@index([dimension, band, kind, active])
+}
+
+enum Band {
+  LOW
+  MID
+  HIGH
+}

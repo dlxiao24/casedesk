@@ -1,0 +1,114 @@
+import type { Dimension, SectionKind } from "@prisma/client";
+import { dimensionLabel } from "@/lib/constants";
+import { clock, longDate } from "@/lib/format";
+
+/**
+ * The shape the report page and the markdown copy both render from. Building it
+ * once guarantees the two never drift — and guarantees, in one place, that
+ * solutions, interviewer guides, personal notes and case quality never leak
+ * into anything a candidate sees (§8).
+ */
+export type ReportModel = {
+  candidateName: string;
+  caseTitle: string;
+  source: string | null;
+  coachName: string;
+  date: Date;
+  totalSeconds: number | null;
+  revisedAt: Date | null;
+  scores: { dimension: Dimension; label: string; value: number }[];
+  continueItems: string[];
+  improveItems: string[];
+  overallNote: string | null;
+  sections: {
+    label: string;
+    kind: SectionKind;
+    feedback: string;
+    whatWasSaid: string;
+    secondsSpent: number;
+  }[];
+  includeRecord: boolean;
+};
+
+export function reportToMarkdown(m: ReportModel): string {
+  const lines: string[] = [];
+  lines.push(`# Case feedback — ${m.candidateName}`);
+  lines.push("");
+  const meta = [
+    m.caseTitle,
+    m.source ?? null,
+    longDate(m.date),
+    `Coach: ${m.coachName}`,
+    m.totalSeconds ? `${Math.round(m.totalSeconds / 60)} min` : null,
+  ].filter(Boolean);
+  lines.push(meta.join(" · "));
+  lines.push("");
+
+  if (m.scores.length) {
+    lines.push("## Scores");
+    lines.push("");
+    for (const s of m.scores) {
+      lines.push(`- **${s.label}** — ${"■".repeat(s.value)}${"□".repeat(5 - s.value)} ${s.value}/5`);
+    }
+    lines.push("");
+  }
+
+  if (m.continueItems.length) {
+    lines.push("## Keep doing");
+    lines.push("");
+    m.continueItems.forEach((t, i) => lines.push(`${i + 1}. ${t}`));
+    lines.push("");
+  }
+
+  if (m.improveItems.length) {
+    lines.push("## Work on");
+    lines.push("");
+    m.improveItems.forEach((t, i) => lines.push(`${i + 1}. ${t}`));
+    lines.push("");
+  }
+
+  if (m.overallNote?.trim()) {
+    lines.push("## Overall");
+    lines.push("");
+    lines.push(m.overallNote.trim());
+    lines.push("");
+  }
+
+  const withFeedback = m.sections.filter((s) => s.feedback.trim());
+  if (withFeedback.length) {
+    lines.push("## Section by section");
+    lines.push("");
+    lines.push("| Section | Time | Feedback |");
+    lines.push("| --- | --- | --- |");
+    for (const s of withFeedback) {
+      lines.push(`| ${s.label} | ${clock(s.secondsSpent)} | ${escapeCell(s.feedback)} |`);
+    }
+    lines.push("");
+  }
+
+  if (m.includeRecord) {
+    const record = m.sections.filter((s) => s.whatWasSaid.trim());
+    if (record.length) {
+      lines.push("---");
+      lines.push("");
+      lines.push("## Session record");
+      lines.push("");
+      for (const s of record) {
+        lines.push(`### ${s.label}`);
+        lines.push("");
+        lines.push(s.whatWasSaid.trim());
+        lines.push("");
+      }
+    }
+  }
+
+  if (m.revisedAt) lines.push(`_Revised ${longDate(m.revisedAt)}._`);
+
+  return lines.join("\n");
+}
+
+function escapeCell(text: string): string {
+  return text.replace(/\|/g, "\|").replace(/\n+/g, " ");
+}
+
+export { dimensionLabel };

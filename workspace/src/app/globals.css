@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  An instrument, not a dashboard (§11). Dark by default because the runner is
+  used at 9pm; the report is the one surface that is always light, because it is
+  a document that gets printed.
+*/
+:root {
+  --paper: 14 16 19;
+  --panel: 20 23 28;
+  --rule: 38 43 51;
+  --ink: 232 234 237;
+  --muted: 154 163 174;
+  --faint: 101 110 122;
+  --accent: 122 162 247;
+  --warn: 217 164 65;
+  --bad: 224 108 108;
+  --good: 111 191 139;
+  --font-body: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html,
+body {
+  background: rgb(var(--paper));
+  color: rgb(var(--ink));
+}
+
+body {
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Timers, page numbers and scores never jitter. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+
+.prose-notes {
+  font-family: var(--font-body);
+}
+
+@layer base {
+  * {
+    @apply border-rule;
+  }
+  :focus-visible {
+    outline: 2px solid rgb(var(--accent));
+    outline-offset: 2px;
+  }
+  input,
+  textarea,
+  select {
+    @apply bg-transparent;
+  }
+  ::placeholder {
+    color: rgb(var(--faint));
+  }
+}
+
+@layer components {
+  .field {
+    @apply w-full rounded border border-rule bg-panel px-2 py-1.5 text-sm text-ink
+           placeholder:text-faint focus:border-accent focus:outline-none;
+  }
+  .btn {
+    @apply inline-flex items-center gap-1.5 rounded border border-rule px-2.5 py-1.5
+           text-sm text-ink transition-colors hover:border-faint disabled:opacity-40
+           disabled:hover:border-rule;
+  }
+  .btn-primary {
+    @apply border-accent/60 bg-accent/10 text-ink hover:border-accent;
+  }
+  .btn-quiet {
+    @apply border-transparent text-muted hover:text-ink;
+  }
+  .label {
+    @apply block text-2xs uppercase tracking-wider text-faint;
+  }
+  .chip {
+    @apply inline-flex items-center rounded border px-1.5 py-0.5 text-2xs;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- The report: a document, not a webpage (§11) ---------- */
+
+.report {
+  --paper: 255 255 255;
+  --panel: 255 255 255;
+  --rule: 216 216 212;
+  --ink: 23 24 26;
+  --muted: 85 88 94;
+  --faint: 133 136 143;
+  background: #ffffff;
+  color: #17181a;
+  font-family: var(--font-body);
+}
+
+@page {
+  margin: 20mm 18mm;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .report {
+    background: #fff;
+  }
+  .page-break-before {
+    break-before: page;
+    page-break-before: always;
+  }
+  a[href]::after {
+    content: "";
+  }
+}
