@@ -9,12 +9,19 @@ type PdfJsModule = { GlobalWorkerOptions: { workerSrc: string } };
  * app rather than fetched from a CDN, so there is no third-party dependency at
  * runtime and nothing to pay for.
  */
+export const WORKER_SRC = "/pdf.worker.min.mjs";
+
 export function configureWorker(pdfjs: PdfJsModule) {
-  if (pdfjs.GlobalWorkerOptions.workerSrc) return;
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/build/pdf.worker.min.mjs",
-    import.meta.url,
-  ).toString();
+  // Set unconditionally. react-pdf assigns `workerSrc = 'pdf.worker.mjs'` at
+  // import time — a bare specifier no browser can resolve — so a
+  // "leave it alone if already set" guard silently keeps the broken value and
+  // pdf.js falls back to a fake worker that cannot start.
+  //
+  // The file is served from our own origin; scripts/copy-pdf-worker.mjs puts it
+  // in public/ on install. Deliberately not a bundler `new URL(...)` trick:
+  // that resolves under webpack but not under Turbopack.
+  if (pdfjs.GlobalWorkerOptions.workerSrc === WORKER_SRC) return;
+  pdfjs.GlobalWorkerOptions.workerSrc = WORKER_SRC;
 }
 
 export type ExtractedPages = {
@@ -31,7 +38,13 @@ export async function extractPdfText(
   file: File,
   onProgress?: (done: number, total: number) => void,
 ): Promise<ExtractedPages> {
-  const pdfjs = (await import("pdfjs-dist")) as unknown as typeof PdfJs & PdfJsModule;
+  // Deliberately react-pdf's copy of pdf.js rather than a second import of
+  // "pdfjs-dist". Importing the package directly here loaded a separate
+  // instance through a different ESM/CJS interop path, which blew up with
+  // "Object.defineProperty called on non-object" before a page was ever read.
+  const { pdfjs } = (await import("react-pdf")) as unknown as {
+    pdfjs: typeof PdfJs & PdfJsModule;
+  };
   configureWorker(pdfjs);
 
   const buffer = await file.arrayBuffer();

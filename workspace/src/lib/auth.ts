@@ -32,7 +32,11 @@ export const currentUser = cache(async (): Promise<User | null> => {
 });
 
 async function signedInEmail(): Promise<string | null> {
-  if (!supabaseConfigured) return devCoachEmail || null;
+  // A dev override, honoured even when Supabase is configured, so local work
+  // does not need a magic-link round trip through a real inbox. `devCoachEmail`
+  // is hard-wired to "" when NODE_ENV is production, so this cannot ship.
+  if (devCoachEmail) return devCoachEmail.toLowerCase();
+  if (!supabaseConfigured) return null;
   const supabase = await createClient();
   if (!supabase) return null;
   const { data } = await supabase.auth.getUser();

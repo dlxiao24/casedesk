@@ -92,6 +92,9 @@ export function UploadCasebook() {
       if ("error" in result && result.error) throw new Error(result.error);
       if ("id" in result) router.push(`/casebooks/${result.id}/split`);
     } catch (err) {
+      // The message alone is rarely enough to tell a pdf.js parse failure from
+      // a storage permission failure; keep the stack reachable in the console.
+      console.error("Casebook upload failed:", err);
       setPhase("error");
       setError(err instanceof Error ? err.message : "Upload failed.");
     }
