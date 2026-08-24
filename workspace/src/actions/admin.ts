@@ -28,7 +28,9 @@ export async function inviteCoach(_prev: { error?: string; ok?: string } | null,
     update: { role, revokedAt: null, invitedById: admin.id },
   });
   revalidatePath("/settings/coaches");
-  return { ok: `Invited ${parsed.data}. They can sign in with a magic link.` };
+  return {
+    ok: `Invited ${parsed.data}. They can now sign in at the login page with that address — no email is sent from here.`,
+  };
 }
 
 export async function revokeInvite(inviteId: string) {

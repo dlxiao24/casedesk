@@ -178,3 +178,35 @@ export async function appendPersonalNote(caseId: string, text: string) {
   revalidatePath(`/cases/${caseId}`);
   return { error: undefined };
 }
+
+/**
+ * Hard delete, for a case that should never have existed — the usual cause is a
+ * mis-drawn page range while splitting a casebook.
+ *
+ * Refused once anything has been run on it. Deleting would cascade to every
+ * session, which means a candidate's scores and feedback, and no amount of
+ * confirmation copy makes that a reasonable thing to do by accident. Archiving
+ * is the answer there (§14).
+ */
+export async function deleteCase(caseId: string) {
+  const user = await requireUser();
+  const target = await db.case.findUniqueOrThrow({
+    where: { id: caseId },
+    select: { ownerId: true, title: true, _count: { select: { sessions: true } } },
+  });
+  if (target.ownerId !== user.id && user.role !== "ADMIN") {
+    return { error: "Only the owner or an admin can delete a case." };
+  }
+  if (target._count.sessions > 0) {
+    return {
+      error: `“${target.title}” has ${target._count.sessions} session${
+        target._count.sessions === 1 ? "" : "s"
+      } against it. Archive it instead — deleting would take that feedback with it.`,
+    };
+  }
+
+  await db.case.delete({ where: { id: caseId } });
+  revalidatePath("/casebooks");
+  revalidatePath("/library");
+  return { error: undefined };
+}

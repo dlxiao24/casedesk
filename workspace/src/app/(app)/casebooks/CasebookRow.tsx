@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import clsx from "clsx";
+import { CaseRowActions } from "./CaseRowActions";
 
 export type CasebookCase = {
   id: string;
@@ -10,6 +11,9 @@ export type CasebookCase = {
   startPage: number | null;
   endPage: number | null;
   sectionCount: number;
+  archived: boolean;
+  sessionCount: number;
+  canEdit: boolean;
 };
 
 /**
@@ -69,10 +73,17 @@ export function CasebookRow({
           ) : (
             <ul className="divide-y divide-rule/60 rounded border border-rule">
               {cases.map((c) => (
-                <li key={c.id} className="flex items-center gap-2 px-2 py-1.5">
+                <li
+                  key={c.id}
+                  className={clsx(
+                    "flex flex-wrap items-center gap-2 px-2 py-1.5",
+                    c.archived && "opacity-55",
+                  )}
+                >
                   <Link href={`/cases/${c.id}`} className="text-ink hover:text-accent">
                     {c.title}
                   </Link>
+                  {c.archived && <span className="chip border-rule text-faint">archived</span>}
                   <span className="tabular text-2xs text-faint">
                     {c.startPage ? `pp. ${c.startPage}–${c.endPage}` : "no pages"}
                   </span>
@@ -94,6 +105,13 @@ export function CasebookRow({
                   >
                     Administer
                   </Link>
+                  <CaseRowActions
+                    caseId={c.id}
+                    title={c.title}
+                    archived={c.archived}
+                    sessionCount={c.sessionCount}
+                    canEdit={c.canEdit}
+                  />
                 </li>
               ))}
             </ul>

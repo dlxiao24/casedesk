@@ -24,7 +24,9 @@ export default async function CasebooksPage() {
             title: true,
             startPage: true,
             endPage: true,
-            _count: { select: { sections: true } },
+            archived: true,
+            ownerId: true,
+            _count: { select: { sections: true, sessions: true } },
           },
         },
       },
@@ -90,6 +92,9 @@ export default async function CasebooksPage() {
                 startPage: c.startPage,
                 endPage: c.endPage,
                 sectionCount: c._count.sections,
+                archived: c.archived,
+                sessionCount: c._count.sessions,
+                canEdit: c.ownerId === user.id || isAdmin(user),
               }))}
             >
               {isAdmin(user) && <DeleteCasebook id={cb.id} title={cb.title} />}
