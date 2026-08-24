@@ -8,10 +8,10 @@ import dynamic from "next/dynamic";
  * its cell exactly and no zoom level leaves dead space at the sides.
  */
 export const ZOOM_LEVELS = [
-  { label: "S", columns: 6, title: "Six across" },
-  { label: "M", columns: 4, title: "Four across" },
-  { label: "L", columns: 3, title: "Three across" },
-  { label: "XL", columns: 2, title: "Two across — readable slides" },
+  { label: "S", columns: 4, title: "Four across" },
+  { label: "M", columns: 3, title: "Three across" },
+  { label: "L", columns: 2, title: "Two across" },
+  { label: "XL", columns: 1, title: "One slide per row" },
 ] as const;
 
 export type PageMark = {

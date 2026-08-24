@@ -202,6 +202,30 @@ export function AssignSections({
     setLabels((l) => ({ ...nextLabels, ...l }));
   }
 
+  /** Unassign every page of a step, which removes it from the list entirely. */
+  function clearSection(section: Merged) {
+    const sig = signature(section);
+    setAssigned((a) => {
+      const next = { ...a };
+      for (let p = section.startPage; p <= section.endPage; p += 1) delete next[p];
+      return next;
+    });
+    setLabels((l) => {
+      const next = { ...l };
+      delete next[sig];
+      return next;
+    });
+    setManualNest((m) => {
+      const next = { ...m };
+      delete next[sig];
+      // Anything nested under it comes back out rather than vanishing.
+      for (const [child, parent] of Object.entries(next)) {
+        if (parent === sig) next[child] = null;
+      }
+      return next;
+    });
+  }
+
   function labelFor(section: Merged) {
     return (
       labels[signature(section)] ??
@@ -293,7 +317,11 @@ export function AssignSections({
           marks={marks}
           cursor={cursor}
           selected={(p) => p === cursor}
-          onPick={(page) => setCursor(page)}
+          onPick={(page) => {
+            // Click to select; click the same page again to unassign it.
+            if (page === cursor && assigned[page]) assign(page, null);
+            else setCursor(page);
+          }}
           onKeyDown={(e) => {
             const hotkey = numberedKeys.find((k) => k.hotkey === e.key);
             if (hotkey) {
@@ -318,7 +346,8 @@ export function AssignSections({
         <div className="rounded border border-rule bg-panel p-3">
           <h2 className="text-sm text-ink">Keys</h2>
           <p className="mt-0.5 text-2xs text-faint">
-            Click the grid, then press a number. The cursor advances on its own.
+            Click the grid, then press a number. The cursor advances on its own. Click a page a
+            second time to clear it, or press Delete.
           </p>
           <ul className="mt-2 space-y-1">
             {numberedKeys.map((k) => (
@@ -385,6 +414,7 @@ export function AssignSections({
                       }}
                       onHover={(mode) => setDropAt({ sig, mode })}
                       onDrop={(mode) => applyDrop({ sig, mode })}
+                      onClear={() => clearSection(node.section)}
                     />
 
                     <ul
@@ -411,6 +441,7 @@ export function AssignSections({
                                 }}
                                 onHover={(mode) => setDropAt({ sig: childSig, mode })}
                                 onDrop={(mode) => applyDrop({ sig: childSig, mode })}
+                                onClear={() => clearSection(child)}
                                 onDetach={() =>
                                   setManualNest((m) => ({ ...m, [childSig]: null }))
                                 }
@@ -469,7 +500,7 @@ function DropLine({ active }: { active: boolean }) {
   return (
     <div
       className={clsx(
-        "my-0.5 h-0.5 rounded transition-colors",
+        "h-0.5 rounded transition-colors",
         active ? "bg-accent" : "bg-transparent",
       )}
     />
@@ -507,7 +538,7 @@ function AttachSlot({
         onDrop();
       }}
       className={clsx(
-        "my-0.5 flex h-6 items-center rounded border border-dashed px-2 text-2xs transition-colors",
+        "flex h-[18px] items-center rounded border border-dashed px-1.5 text-2xs transition-colors",
         !visible && "pointer-events-none border-transparent text-transparent",
         visible && active && "border-accent bg-accent/15 text-ink",
         visible && !active && "border-rule/70 text-faint hover:border-faint",
@@ -529,6 +560,7 @@ function SectionRow({
   onDragEnd,
   onHover,
   onDrop,
+  onClear,
   onDetach,
 }: {
   number: string;
@@ -541,6 +573,7 @@ function SectionRow({
   onDragEnd: () => void;
   onHover: (mode: DropTarget["mode"]) => void;
   onDrop: (mode: DropTarget["mode"]) => void;
+  onClear: () => void;
   onDetach?: () => void;
 }) {
   const meta = sectionKindMeta(section.kind);
@@ -609,6 +642,14 @@ function SectionRow({
           ↰
         </button>
       )}
+      <button
+        className="shrink-0 px-0.5 text-2xs text-faint hover:text-bad"
+        title="Unassign these pages and remove the step"
+        aria-label={`Remove step ${number}`}
+        onClick={onClear}
+      >
+        ✕
+      </button>
     </div>
   );
 }

@@ -9,14 +9,14 @@ import { ZOOM_LEVELS } from "@/components/PageGrid";
  * are dense — a grid that finds a case boundary is useless for reading an
  * exhibit, so the coach picks. Remembered per browser under `key`.
  */
-export function useZoom(key: string, fallback = 4) {
+export function useZoom(key: string, fallback = 3) {
   const [columns, setColumns] = useState(fallback);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(`casedesk.zoom.${key}`);
-    const n = Number(stored);
-    // Older builds stored a pixel width here; ignore anything out of range.
-    if (n >= 1 && n <= 8) setColumns(n);
+    const stored = Number(window.localStorage.getItem(`casedesk.zoom.${key}`));
+    // Ignore anything that is not a level we still offer: older builds stored a
+    // pixel width here, and the scale itself has shifted since.
+    if (ZOOM_LEVELS.some((z) => z.columns === stored)) setColumns(stored);
   }, [key]);
 
   function choose(next: number) {
