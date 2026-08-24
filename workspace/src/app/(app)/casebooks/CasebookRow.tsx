@@ -27,6 +27,12 @@ export function CasebookRow({
   footer,
   cases,
   children,
+  /**
+   * A grouping with no casebook behind it — the home for cases nobody has
+   * attached to a source. There is nothing to split and nothing to delete, and
+   * a case leaves on its own the moment it is given a casebook.
+   */
+  virtual = false,
 }: {
   id: string;
   title: string;
@@ -34,6 +40,7 @@ export function CasebookRow({
   footer: string;
   cases: CasebookCase[];
   children?: React.ReactNode;
+  virtual?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -48,15 +55,21 @@ export function CasebookRow({
         >
           {open ? "▾" : "▸"}
         </button>
-        <Link href={`/casebooks/${id}/split`} className="text-ink hover:text-accent">
-          {title}
-        </Link>
+        {virtual ? (
+          <span className="text-ink">{title}</span>
+        ) : (
+          <Link href={`/casebooks/${id}/split`} className="text-ink hover:text-accent">
+            {title}
+          </Link>
+        )}
         <span className="text-2xs text-faint">{meta}</span>
         <span className="flex-1" />
         <span className="text-2xs text-faint">{footer}</span>
-        <Link href={`/casebooks/${id}/split`} className="btn btn-quiet py-0.5">
-          Split into cases
-        </Link>
+        {!virtual && (
+          <Link href={`/casebooks/${id}/split`} className="btn btn-quiet py-0.5">
+            Split into cases
+          </Link>
+        )}
         {children}
       </div>
 
@@ -64,11 +77,17 @@ export function CasebookRow({
         <div className="ml-7 mt-2">
           {cases.length === 0 ? (
             <p className="text-2xs text-faint">
-              No cases pulled out of this casebook yet.{" "}
-              <Link href={`/casebooks/${id}/split`} className="text-accent">
-                Split it
-              </Link>
-              .
+              {virtual ? (
+                "Every case is attached to a casebook. Nothing to see here."
+              ) : (
+                <>
+                  No cases pulled out of this casebook yet.{" "}
+                  <Link href={`/casebooks/${id}/split`} className="text-accent">
+                    Split it
+                  </Link>
+                  .
+                </>
+              )}
             </p>
           ) : (
             <ul className="divide-y divide-rule/60 rounded border border-rule">
@@ -96,8 +115,11 @@ export function CasebookRow({
                     {c.sectionCount > 0 ? `${c.sectionCount} sections` : "not sectioned"}
                   </span>
                   <span className="flex-1" />
-                  <Link href={`/cases/${c.id}/sections`} className="btn btn-quiet py-0 text-2xs">
-                    Sections
+                  <Link
+                    href={virtual ? `/cases/${c.id}` : `/cases/${c.id}/sections`}
+                    className="btn btn-quiet py-0 text-2xs"
+                  >
+                    {virtual ? "Open" : "Sections"}
                   </Link>
                   <Link
                     href={`/sessions/new?caseId=${c.id}`}

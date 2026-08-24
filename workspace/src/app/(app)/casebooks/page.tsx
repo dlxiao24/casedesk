@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function CasebooksPage() {
   const user = await requireUser();
 
-  const [casebooks, usage] = await Promise.all([
+  const [casebooks, usage, unassigned] = await Promise.all([
     db.casebook.findMany({
       orderBy: { createdAt: "desc" },
       include: {
@@ -32,6 +32,21 @@ export default async function CasebooksPage() {
       },
     }),
     db.casebook.aggregate({ _sum: { byteSize: true } }),
+    // Not a stored record: cases with no casebook, gathered on every load so
+    // the group fills and empties itself as cases are assigned.
+    db.case.findMany({
+      where: { casebookId: null },
+      orderBy: { title: "asc" },
+      select: {
+        id: true,
+        title: true,
+        startPage: true,
+        endPage: true,
+        archived: true,
+        ownerId: true,
+        _count: { select: { sections: true, sessions: true } },
+      },
+    }),
   ]);
 
   const used = usage._sum.byteSize ?? 0;
@@ -73,7 +88,7 @@ export default async function CasebooksPage() {
         )}
       </div>
 
-      {casebooks.length === 0 ? (
+      {casebooks.length === 0 && unassigned.length === 0 ? (
         <p className="rounded border border-rule bg-panel px-4 py-8 text-center text-sm text-muted">
           No casebooks yet. Upload a casebook to get started.
         </p>
@@ -100,6 +115,26 @@ export default async function CasebooksPage() {
               {isAdmin(user) && <DeleteCasebook id={cb.id} title={cb.title} />}
             </CasebookRow>
           ))}
+
+          {unassigned.length > 0 && (
+            <CasebookRow
+              virtual
+              id="unassigned"
+              title="Unassigned cases"
+              meta="typed or pasted — no casebook behind them"
+              footer={`${unassigned.length} case${unassigned.length === 1 ? "" : "s"}`}
+              cases={unassigned.map((c) => ({
+                id: c.id,
+                title: c.title,
+                startPage: c.startPage,
+                endPage: c.endPage,
+                sectionCount: c._count.sections,
+                archived: c.archived,
+                sessionCount: c._count.sessions,
+                canEdit: c.ownerId === user.id || isAdmin(user),
+              }))}
+            />
+          )}
         </ul>
       )}
     </div>
