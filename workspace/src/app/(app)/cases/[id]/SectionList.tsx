@@ -36,7 +36,10 @@ export function SectionList({
       <div className="flex items-baseline justify-between">
         <h2 className="text-sm text-ink">Sections</h2>
         <div className="flex gap-2">
-          {hasCasebook && (
+          {/* Only offered to someone who can actually save it — the sectioning
+              screen refuses a non-owner, and finding that out after doing the
+              work is worse than not seeing the link. */}
+          {hasCasebook && canEdit && (
             <Link href={`/cases/${caseId}/sections`} className="btn btn-quiet py-0.5">
               Split from PDF
             </Link>
