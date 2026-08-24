@@ -9,8 +9,12 @@ import type { ReportModel } from "@/lib/report";
  */
 export function Report({ model }: { model: ReportModel }) {
   // A section earns a place if anything was captured against it at all.
+  const showDetail = model.includeFeedback || model.includeWhatWasSaid;
   const detail = model.sections.filter(
-    (s) => s.feedback.trim() || s.whatWasSaid.trim() || s.secondsSpent > 0,
+    (s) =>
+      (model.includeFeedback && s.feedback.trim()) ||
+      (model.includeWhatWasSaid && s.whatWasSaid.trim()) ||
+      s.secondsSpent > 0,
   );
 
   return (
@@ -31,7 +35,7 @@ export function Report({ model }: { model: ReportModel }) {
         </p>
       </header>
 
-      {model.scores.length > 0 && (
+      {model.includeScores && model.scores.length > 0 && (
         <section className="mt-8">
           <h2 className="text-xs uppercase tracking-widest text-neutral-500">Scores</h2>
           <dl className="mt-3 space-y-1.5">
@@ -48,7 +52,7 @@ export function Report({ model }: { model: ReportModel }) {
         </section>
       )}
 
-      {model.continueItems.length > 0 && (
+      {model.includeTakeaways && model.continueItems.length > 0 && (
         <section className="mt-8">
           <h2 className="text-xs uppercase tracking-widest text-neutral-500">Keep doing</h2>
           <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-[0.95rem] leading-relaxed">
@@ -59,7 +63,7 @@ export function Report({ model }: { model: ReportModel }) {
         </section>
       )}
 
-      {model.improveItems.length > 0 && (
+      {model.includeTakeaways && model.improveItems.length > 0 && (
         <section className="mt-8">
           <h2 className="text-xs uppercase tracking-widest text-neutral-500">Work on</h2>
           <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-[0.95rem] leading-relaxed">
@@ -70,7 +74,7 @@ export function Report({ model }: { model: ReportModel }) {
         </section>
       )}
 
-      {model.overallNote?.trim() && (
+      {model.includeOverall && model.overallNote?.trim() && (
         <section className="mt-8">
           <h2 className="text-xs uppercase tracking-widest text-neutral-500">Overall</h2>
           <p className="mt-2 whitespace-pre-wrap text-[0.95rem] leading-relaxed">
@@ -83,7 +87,7 @@ export function Report({ model }: { model: ReportModel }) {
           the coach said to change, and what the candidate actually said. It
           goes last, under its own heading and after a page break, so the
           judgment is read first and the record second (§8). */}
-      {model.includeRecord && detail.length > 0 && (
+      {showDetail && detail.length > 0 && (
         <section className="page-break-before mt-12 border-t border-neutral-300 pt-8">
           <h2 className="text-lg">Section by section</h2>
           <p className="mt-1 text-sm text-neutral-500">
@@ -98,7 +102,7 @@ export function Report({ model }: { model: ReportModel }) {
                     {clock(s.secondsSpent)}
                   </span>
                 </h3>
-                {s.feedback.trim() && (
+                {model.includeFeedback && s.feedback.trim() && (
                   <div className="mt-2">
                     <div className="text-xs uppercase tracking-wider text-neutral-500">
                       What to change
@@ -108,7 +112,7 @@ export function Report({ model }: { model: ReportModel }) {
                     </p>
                   </div>
                 )}
-                {s.whatWasSaid.trim() && (
+                {model.includeWhatWasSaid && s.whatWasSaid.trim() && (
                   <div className="mt-2">
                     <div className="text-xs uppercase tracking-wider text-neutral-500">
                       What was said

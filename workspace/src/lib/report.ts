@@ -27,7 +27,11 @@ export type ReportModel = {
     whatWasSaid: string;
     secondsSpent: number;
   }[];
-  includeRecord: boolean;
+  includeScores: boolean;
+  includeTakeaways: boolean;
+  includeOverall: boolean;
+  includeFeedback: boolean;
+  includeWhatWasSaid: boolean;
 };
 
 export function reportToMarkdown(m: ReportModel): string {
@@ -44,7 +48,7 @@ export function reportToMarkdown(m: ReportModel): string {
   lines.push(meta.join(" · "));
   lines.push("");
 
-  if (m.scores.length) {
+  if (m.includeScores && m.scores.length) {
     lines.push("## Scores");
     lines.push("");
     for (const s of m.scores) {
@@ -53,30 +57,33 @@ export function reportToMarkdown(m: ReportModel): string {
     lines.push("");
   }
 
-  if (m.continueItems.length) {
+  if (m.includeTakeaways && m.continueItems.length) {
     lines.push("## Keep doing");
     lines.push("");
     m.continueItems.forEach((t, i) => lines.push(`${i + 1}. ${t}`));
     lines.push("");
   }
 
-  if (m.improveItems.length) {
+  if (m.includeTakeaways && m.improveItems.length) {
     lines.push("## Work on");
     lines.push("");
     m.improveItems.forEach((t, i) => lines.push(`${i + 1}. ${t}`));
     lines.push("");
   }
 
-  if (m.overallNote?.trim()) {
+  if (m.includeOverall && m.overallNote?.trim()) {
     lines.push("## Overall");
     lines.push("");
     lines.push(m.overallNote.trim());
     lines.push("");
   }
 
-  if (m.includeRecord) {
+  if (m.includeFeedback || m.includeWhatWasSaid) {
     const detail = m.sections.filter(
-      (s) => s.feedback.trim() || s.whatWasSaid.trim() || s.secondsSpent > 0,
+      (s) =>
+        (m.includeFeedback && s.feedback.trim()) ||
+        (m.includeWhatWasSaid && s.whatWasSaid.trim()) ||
+        s.secondsSpent > 0,
     );
     if (detail.length) {
       lines.push("---");
@@ -86,11 +93,11 @@ export function reportToMarkdown(m: ReportModel): string {
       for (const s of detail) {
         lines.push(`### ${s.label} — ${clock(s.secondsSpent)}`);
         lines.push("");
-        if (s.feedback.trim()) {
+        if (m.includeFeedback && s.feedback.trim()) {
           lines.push(`**What to change:** ${s.feedback.trim()}`);
           lines.push("");
         }
-        if (s.whatWasSaid.trim()) {
+        if (m.includeWhatWasSaid && s.whatWasSaid.trim()) {
           lines.push(`**What was said:** ${s.whatWasSaid.trim()}`);
           lines.push("");
         }

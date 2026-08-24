@@ -201,7 +201,14 @@ export async function setOverallNote(sessionId: string, overallNote: string) {
 
 export async function setReportOptions(
   sessionId: string,
-  options: { includeRecord?: boolean; hideSource?: boolean },
+  options: {
+    includeScores?: boolean;
+    includeTakeaways?: boolean;
+    includeOverall?: boolean;
+    includeFeedback?: boolean;
+    includeWhatWasSaid?: boolean;
+    hideSource?: boolean;
+  },
 ) {
   await requireUser();
   await db.session.update({ where: { id: sessionId }, data: options });

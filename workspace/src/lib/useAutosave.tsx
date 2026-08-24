@@ -98,3 +98,74 @@ export function SaveIndicator({ state }: { state: SaveState }) {
     </span>
   );
 }
+
+/**
+ * Autosave for a set of independent fields that share one debounce.
+ *
+ * `useAutosave` keeps a single pending value, which is right for one textarea
+ * and wrong for six. Sharing one instance across the takeaway boxes meant
+ * scheduling a save for box two discarded the unsent edit to box one, and a
+ * later refresh reset those boxes to whatever the server still had — reading,
+ * fairly, as "saving a note wiped my takeaways". Pending edits are keyed here,
+ * so every field is sent.
+ */
+export function useKeyedAutosave<T>(
+  save: (value: T) => Promise<unknown>,
+  { delay = 500 }: { delay?: number } = {},
+) {
+  const [state, setState] = useState<SaveState>("idle");
+  const pending = useRef(new Map<string, T>());
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveRef = useRef(save);
+  saveRef.current = save;
+
+  const flush = useCallback(async () => {
+    if (pending.current.size === 0) return;
+    const batch = [...pending.current.entries()];
+    pending.current.clear();
+    setState("saving");
+    try {
+      await Promise.all(batch.map(([, value]) => saveRef.current(value)));
+      setState(pending.current.size > 0 ? "saving" : "saved");
+    } catch {
+      // Put them back so the next attempt carries them rather than losing them.
+      for (const [key, value] of batch) {
+        if (!pending.current.has(key)) pending.current.set(key, value);
+      }
+      setState("offline");
+    }
+  }, []);
+
+  const schedule = useCallback(
+    (key: string, value: T) => {
+      pending.current.set(key, value);
+      setState((s) => (s === "offline" ? "offline" : "saving"));
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => void flush(), delay);
+    },
+    [delay, flush],
+  );
+
+  /** True when nothing is waiting to be sent — safe to accept server state. */
+  const isSettled = useCallback(() => pending.current.size === 0, []);
+
+  useEffect(() => {
+    const onOnline = () => void flush();
+    window.addEventListener("online", onOnline);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      if (timer.current) clearTimeout(timer.current);
+      void flush();
+    };
+  }, [flush]);
+
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pending.current.size > 0) e.preventDefault();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
+  return { state, schedule, flush, isSettled };
+}

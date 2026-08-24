@@ -3,13 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import {
-  createShareLink,
-  markShared,
-  reopenSession,
-  revokeShareLink,
-  setReportOptions,
-} from "@/actions/sessions";
+import { createShareLink, markShared, reopenSession, revokeShareLink } from "@/actions/sessions";
+import { ReportOptionsDialog, type ReportOptions } from "@/components/ReportOptionsDialog";
 
 /**
  * Everything on this bar that puts the report in front of a candidate also
@@ -18,28 +13,38 @@ import {
 export function ReportToolbar({
   sessionId,
   locked,
-  includeRecord,
-  hideSource,
+  options,
   shareToken,
   candidateId,
   markdown,
+  openOptionsOnLoad = false,
 }: {
   sessionId: string;
   locked: boolean;
-  includeRecord: boolean;
-  hideSource: boolean;
+  options: ReportOptions;
   shareToken: string | null;
   candidateId: string;
   markdown: string;
+  openOptionsOnLoad?: boolean;
 }) {
   const router = useRouter();
   const [, start] = useTransition();
   const [copied, setCopied] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(openOptionsOnLoad);
+
   // Built after mount so the server and client agree on the first render.
   const [link, setLink] = useState<string | null>(null);
   useEffect(() => {
     setLink(shareToken ? `${window.location.origin}/share/${shareToken}` : null);
   }, [shareToken]);
+
+  const included = [
+    options.includeScores && "rubric",
+    options.includeTakeaways && "takeaways",
+    options.includeOverall && "overall",
+    options.includeFeedback && "feedback",
+    options.includeWhatWasSaid && "what was said",
+  ].filter(Boolean) as string[];
 
   return (
     <div className="no-print sticky top-0 z-10 border-b border-neutral-300 bg-white/95 backdrop-blur">
@@ -49,34 +54,13 @@ export function ReportToolbar({
         </Link>
         <span className="flex-1" />
 
-        <label className="flex items-center gap-1.5" title="Time, feedback and what was said for each section. Goes last, after a page break.">
-          <input
-            type="checkbox"
-            checked={includeRecord}
-            disabled={locked}
-            onChange={(e) =>
-              start(async () => {
-                await setReportOptions(sessionId, { includeRecord: e.target.checked });
-                router.refresh();
-              })
-            }
-          />
-          Section detail
-        </label>
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={hideSource}
-            disabled={locked}
-            onChange={(e) =>
-              start(async () => {
-                await setReportOptions(sessionId, { hideSource: e.target.checked });
-                router.refresh();
-              })
-            }
-          />
-          Hide source
-        </label>
+        <button
+          className="rounded border border-neutral-300 px-2 py-1 hover:border-neutral-500"
+          onClick={() => setOptionsOpen(true)}
+          title={included.length ? `Including: ${included.join(", ")}` : "Nothing included"}
+        >
+          Sections ({included.length}/5)
+        </button>
 
         <button
           className="rounded border border-neutral-300 px-2 py-1 hover:border-neutral-500"
@@ -165,6 +149,14 @@ export function ReportToolbar({
           </Link>
         )}
       </div>
+
+      <ReportOptionsDialog
+        sessionId={sessionId}
+        initial={options}
+        open={optionsOpen}
+        onClose={() => setOptionsOpen(false)}
+        confirmLabel="Apply"
+      />
     </div>
   );
 }

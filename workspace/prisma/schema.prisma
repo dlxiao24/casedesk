@@ -253,11 +253,17 @@ model Session {
   sectionNotes SectionNote[]
   takeaways    Takeaway[]
   overallNote  String?
-  /// Report toggle: include the per-section detail block — what was said, the
-  /// feedback given, and time spent on each section (§8). Default on.
-  includeRecord Boolean  @default(true)
+  /// What the report includes (§8). Every part is on by default; the coach
+  /// turns pieces off in the dialog before generating.
+  includeScores      Boolean @default(true)
+  includeTakeaways   Boolean @default(true)
+  includeOverall     Boolean @default(true)
+  /// The coaching notes written during the case, section by section.
+  includeFeedback    Boolean @default(true)
+  /// The record of what the candidate actually said.
+  includeWhatWasSaid Boolean @default(true)
   /// Suppress the casebook source line in the report.
-  hideSource    Boolean  @default(false)
+  hideSource         Boolean @default(false)
   sharedAt      DateTime?
 
   @@index([candidateId])

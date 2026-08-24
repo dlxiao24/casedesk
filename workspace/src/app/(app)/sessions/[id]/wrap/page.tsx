@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { clock } from "@/lib/format";
 import { WrapUp } from "./WrapUp";
+import { GenerateReport } from "./GenerateReport";
 
 export const dynamic = "force-dynamic";
 
@@ -37,9 +37,17 @@ export default async function WrapPage({ params }: { params: Promise<{ id: strin
             <span className="tabular">{clock(session.totalSeconds ?? 0)}</span>
           </p>
         </div>
-        <Link href={`/sessions/${session.id}/report`} className="btn">
-          View report
-        </Link>
+        <GenerateReport
+          sessionId={session.id}
+          options={{
+            includeScores: session.includeScores,
+            includeTakeaways: session.includeTakeaways,
+            includeOverall: session.includeOverall,
+            includeFeedback: session.includeFeedback,
+            includeWhatWasSaid: session.includeWhatWasSaid,
+            hideSource: session.hideSource,
+          }}
+        />
       </div>
 
       <WrapUp

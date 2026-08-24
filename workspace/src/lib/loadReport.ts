@@ -72,7 +72,11 @@ export async function loadReportModel(
       whatWasSaid: notes.get(s.id)?.whatWasSaid ?? "",
       secondsSpent: notes.get(s.id)?.secondsSpent ?? 0,
     })),
-    includeRecord: session.includeRecord,
+    includeScores: session.includeScores,
+    includeTakeaways: session.includeTakeaways,
+    includeOverall: session.includeOverall,
+    includeFeedback: session.includeFeedback,
+    includeWhatWasSaid: session.includeWhatWasSaid,
   };
 }
 

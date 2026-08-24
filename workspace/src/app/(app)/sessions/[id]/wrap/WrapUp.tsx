@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import clsx from "clsx";
 import type { Dimension, TakeawayKind } from "@prisma/client";
 import { appendPersonalNote, setCaseAttribute } from "@/actions/cases";
@@ -15,7 +15,7 @@ import {
 import { ScoreBar } from "@/components/ScoreBar";
 import { Segmented } from "@/components/Segmented";
 import { DIMENSIONS } from "@/lib/constants";
-import { SaveIndicator, useAutosave } from "@/lib/useAutosave";
+import { SaveIndicator, useAutosave, useKeyedAutosave } from "@/lib/useAutosave";
 
 type Takeaway = { kind: TakeawayKind; rank: number; text: string };
 
@@ -46,10 +46,15 @@ export function WrapUp({
   const router = useRouter();
   const [scores, setScores] = useState(initialScores);
   const [items, setItems] = useState<Takeaway[]>(initialTakeaways);
+  const takeawaySaverRef = useRef<{ isSettled: () => boolean } | null>(null);
   // Re-sync when the server sends a different set — after a reopen, or when a
   // second tab edited the same session.
   const serverItems = JSON.stringify(initialTakeaways);
   useEffect(() => {
+    // A refresh anywhere on this screen re-runs the server component. Accepting
+    // its takeaways while edits are still in flight is what used to blank the
+    // boxes, so defer to the server only once everything local has landed.
+    if (!takeawaySaverRef.current?.isSettled()) return;
     setItems(JSON.parse(serverItems) as Takeaway[]);
   }, [serverItems]);
   const [overall, setOverall] = useState(initialOverall);
@@ -60,9 +65,10 @@ export function WrapUp({
   const [, startSave] = useTransition();
 
   const overallSaver = useAutosave<string>((v) => setOverallNote(sessionId, v));
-  const takeawaySaver = useAutosave<Takeaway>((t) =>
+  const takeawaySaver = useKeyedAutosave<Takeaway>((t) =>
     setTakeaway(sessionId, t.kind, t.rank, t.text),
   );
+  takeawaySaverRef.current = takeawaySaver;
 
   function textFor(kind: TakeawayKind, rank: number) {
     return items.find((t) => t.kind === kind && t.rank === rank)?.text ?? "";
@@ -73,7 +79,7 @@ export function WrapUp({
       const rest = list.filter((t) => !(t.kind === kind && t.rank === rank));
       return [...rest, { kind, rank, text }];
     });
-    takeawaySaver.schedule({ kind, rank, text });
+    takeawaySaver.schedule(`${kind}:${rank}`, { kind, rank, text });
   }
 
   return (
@@ -247,6 +253,9 @@ export function WrapUp({
               disabled={!caseNote.trim()}
               onClick={() =>
                 startSave(async () => {
+                  // Flush first: the refresh below pulls takeaways from the
+                  // server, and anything still queued would be lost.
+                  await takeawaySaver.flush();
                   await appendPersonalNote(caseId, caseNote);
                   setCaseNote("");
                   router.refresh();

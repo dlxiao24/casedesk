@@ -8,9 +8,16 @@ import { ReportToolbar } from "./ReportToolbar";
 
 export const dynamic = "force-dynamic";
 
-export default async function ReportPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ReportPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ options?: string }>;
+}) {
   await requireUser();
   const { id } = await params;
+  const { options } = await searchParams;
 
   const [model, session] = await Promise.all([
     loadReportModel({ id }),
@@ -19,7 +26,11 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
       select: {
         id: true,
         locked: true,
-        includeRecord: true,
+        includeScores: true,
+        includeTakeaways: true,
+        includeOverall: true,
+        includeFeedback: true,
+        includeWhatWasSaid: true,
         hideSource: true,
         shareToken: true,
         reopenedAt: true,
@@ -34,11 +45,19 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
       <ReportToolbar
         sessionId={session.id}
         locked={session.locked}
-        includeRecord={session.includeRecord}
-        hideSource={session.hideSource}
+        options={{
+          includeScores: session.includeScores,
+          includeTakeaways: session.includeTakeaways,
+          includeOverall: session.includeOverall,
+          includeFeedback: session.includeFeedback,
+          includeWhatWasSaid: session.includeWhatWasSaid,
+          hideSource: session.hideSource,
+        }}
         shareToken={session.shareToken}
         candidateId={session.candidate.id}
         markdown={reportToMarkdown(model)}
+        /* Arriving from "Generate report" opens the dialog straight away. */
+        openOptionsOnLoad={options === "1"}
       />
       <div className="pb-16">
         <div className="mx-auto max-w-[46rem] bg-white shadow-sm print:shadow-none">
