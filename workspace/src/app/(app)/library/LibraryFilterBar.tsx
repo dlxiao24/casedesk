@@ -14,9 +14,11 @@ import {
 export function LibraryFilterBar({
   casebooks,
   industries,
+  firms,
 }: {
   casebooks: { id: string; title: string }[];
   industries: string[];
+  firms: string[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -66,6 +68,12 @@ export function LibraryFilterBar({
           onChange={(v) => set({ industry: v })}
           placeholder="Any industry"
           options={industries.map((i) => ({ value: i, label: i }))}
+        />
+        <Select
+          value={params.get("firm") ?? ""}
+          onChange={(v) => set({ firm: v })}
+          placeholder="Any firm"
+          options={firms.map((f) => ({ value: f, label: f }))}
         />
         <Select
           value={params.get("format") ?? ""}

@@ -306,6 +306,16 @@ export function Runner({
         <button className="btn btn-quiet py-0" onClick={() => setAdding(true)}>
           Add section
         </button>
+        {/* Its own tab, so it can be screenshared or printed without the rest of
+            the runner — and so nothing here can scroll a solution into view. */}
+        <a
+          className="btn btn-quiet py-0"
+          href={`/sessions/${sessionId}/exhibits`}
+          target="_blank"
+          rel="noopener"
+        >
+          Exhibit view ↗
+        </a>
         <button className="btn py-0" onClick={finish} disabled={ending}>
           {ending ? "Ending…" : "End case ⌘S"}
         </button>

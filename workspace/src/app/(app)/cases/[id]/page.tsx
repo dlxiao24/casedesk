@@ -65,7 +65,8 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
           <h1 className="text-lg text-ink">{kase.title}</h1>
           <p className="text-sm text-muted">
             {CASE_TYPES.find((t) => t.value === kase.caseType)?.label}
-            {kase.industry ? ` · ${kase.industry}` : ""} ·{" "}
+            {kase.industry ? ` · ${kase.industry}` : ""}
+            {kase.firm ? ` · ${kase.firm}` : ""} ·{" "}
             {CASE_FORMATS.find((f) => f.value === kase.format)?.label}
             {kase.targetRound
               ? ` · ${TARGET_ROUNDS.find((r) => r.value === kase.targetRound)?.label}`
@@ -87,6 +88,7 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
               title: kase.title,
               caseType: kase.caseType,
               industry: kase.industry,
+              firm: kase.firm,
               format: kase.format,
               targetRound: kase.targetRound,
               casebookId: kase.casebookId,

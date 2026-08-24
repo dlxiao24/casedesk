@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { knownIndustries, libraryRows, parseFilters } from "@/lib/library";
+import { knownFirms, knownIndustries, libraryRows, parseFilters } from "@/lib/library";
 import { LibraryFilterBar } from "./LibraryFilterBar";
 import { LibraryTable } from "./LibraryTable";
 
@@ -16,10 +16,11 @@ export default async function LibraryPage({
   const params = await searchParams;
   const filters = parseFilters(params);
 
-  const [rows, casebooks, industries, totalCases] = await Promise.all([
+  const [rows, casebooks, industries, firms, totalCases] = await Promise.all([
     libraryRows(user.id, filters),
     db.casebook.findMany({ select: { id: true, title: true }, orderBy: { title: "asc" } }),
     knownIndustries(),
+    knownFirms(),
     db.case.count({ where: { archived: false } }),
   ]);
 
@@ -44,7 +45,7 @@ export default async function LibraryPage({
         </div>
       </div>
 
-      <LibraryFilterBar casebooks={casebooks} industries={industries} />
+      <LibraryFilterBar casebooks={casebooks} industries={industries} firms={firms} />
 
       {rows.length === 0 ? (
         <div className="rounded border border-rule bg-panel px-4 py-10 text-center">
@@ -73,6 +74,7 @@ function serialize(row: Awaited<ReturnType<typeof libraryRows>>[number]) {
     title: row.title,
     caseType: row.caseType,
     industry: row.industry,
+    firm: row.firm,
     format: row.format,
     targetRound: row.targetRound,
     source: row.casebook

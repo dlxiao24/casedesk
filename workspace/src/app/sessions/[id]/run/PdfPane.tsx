@@ -12,7 +12,16 @@ configureWorker(pdfjs);
  * The current section's pages, scrollable (§6.1). Width tracks the pane so the
  * coach can resize without losing the exhibit.
  */
-export function PdfPane({ fileUrl, pages }: { fileUrl: string; pages: number[] }) {
+export function PdfPane({
+  fileUrl,
+  pages,
+  /** "dark" fills the runner's own pane; "light" is for the shared exhibit view. */
+  tone = "dark",
+}: {
+  fileUrl: string;
+  pages: number[];
+  tone?: "dark" | "light";
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(700);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +42,14 @@ export function PdfPane({ fileUrl, pages }: { fileUrl: string; pages: number[] }
   }, [pages[0]]);
 
   return (
-    <div ref={ref} className="h-full overflow-auto bg-[#1a1d22] p-3">
+    <div
+      ref={ref}
+      className={
+        tone === "light"
+          ? "overflow-x-auto bg-white p-2"
+          : "h-full overflow-auto bg-[#1a1d22] p-3"
+      }
+    >
       {error ? (
         <p className="p-4 text-sm text-warn">{error}</p>
       ) : (
@@ -51,7 +67,9 @@ export function PdfPane({ fileUrl, pages }: { fileUrl: string; pages: number[] }
                 renderAnnotationLayer={false}
                 className="mx-auto"
               />
-              <div className="tabular pt-1 text-center text-2xs text-faint">p. {p}</div>
+              {tone === "dark" && (
+                <div className="tabular pt-1 text-center text-2xs text-faint">p. {p}</div>
+              )}
             </div>
           ))}
         </Document>

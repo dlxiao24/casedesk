@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import type { CaseFormat, CaseType, TargetRound } from "@prisma/client";
 import { updateCase } from "@/actions/cases";
 import { CASE_FORMATS, CASE_TYPES, TARGET_ROUNDS } from "@/lib/constants";
+import { FirmField } from "@/components/FirmField";
 
 /**
  * The fields the library filters on (§5). They were settable only at creation,
@@ -24,6 +25,7 @@ export function CaseFields({
     title: string;
     caseType: CaseType;
     industry: string | null;
+    firm: string | null;
     format: CaseFormat;
     targetRound: TargetRound | null;
     casebookId: string | null;
@@ -103,6 +105,7 @@ export function CaseFields({
             className="field mt-1"
           />
         </div>
+        <FirmField defaultValue={initial.firm} />
         <div>
           <label className="label" htmlFor="targetRound">
             Target round

@@ -95,11 +95,11 @@ export function SplitCasebook({
     <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
       <div>
         <div className="mb-2 flex items-center gap-2">
-          <ZoomControl width={zoom.width} onChange={zoom.choose} />
+          <ZoomControl columns={zoom.columns} onChange={zoom.choose} />
           <span className="text-2xs text-faint">Thumbnail size</span>
         </div>
       <PageGrid
-        thumbWidth={zoom.width}
+        columns={zoom.columns}
         fileUrl={fileUrl}
         pageCount={pageCount}
         marks={marks}

@@ -65,18 +65,43 @@ export const SECTION_KINDS: {
   hidden?: boolean;
 }[] = [
   { value: "PROMPT", label: "Prompt", hotkey: "1", spine: "bg-sky-500", chip: "text-sky-300 border-sky-900" },
-  { value: "EXHIBIT", label: "Exhibit", hotkey: "2", spine: "bg-violet-500", chip: "text-violet-300 border-violet-900" },
-  // Appended rather than slotted in beside Exhibit: the 1-7 keys are muscle
-  // memory by the time anyone wants this one.
-  { value: "EXHIBIT_PROMPT", label: "Exhibit prompt", hotkey: "8", spine: "bg-violet-300", chip: "text-violet-200 border-violet-900" },
+  { value: "EXHIBIT_PROMPT", label: "Exhibit (prompt)", hotkey: "2", spine: "bg-violet-300", chip: "text-violet-200 border-violet-900" },
   { value: "MATH", label: "Math", hotkey: "3", spine: "bg-amber-500", chip: "text-amber-300 border-amber-900" },
   { value: "BRAINSTORM", label: "Brainstorm", hotkey: "4", spine: "bg-teal-500", chip: "text-teal-300 border-teal-900" },
-  { value: "SYNTHESIS", label: "Synthesis", hotkey: "5", spine: "bg-emerald-500", chip: "text-emerald-300 border-emerald-900" },
-  { value: "SOLUTION", label: "Solution", hotkey: "6", spine: "bg-rose-500", chip: "text-rose-300 border-rose-900", hidden: true },
-  { value: "INTERVIEWER_GUIDE", label: "Interviewer guide", hotkey: "7", spine: "bg-rose-700", chip: "text-rose-300 border-rose-900", hidden: true },
+  { value: "SYNTHESIS", label: "Synthesis/Recommendation", hotkey: "5", spine: "bg-emerald-500", chip: "text-emerald-300 border-emerald-900" },
+  { value: "INTERVIEWER_GUIDE", label: "Interviewer solution", hotkey: "6", spine: "bg-rose-700", chip: "text-rose-300 border-rose-900", hidden: true },
+  { value: "EXHIBIT", label: "Interviewee exhibit", hotkey: "7", spine: "bg-violet-500", chip: "text-violet-300 border-violet-900" },
+  // Reachable from the menus but off the number row: legacy content and the
+  // occasional hand-made section still need somewhere to live.
+  { value: "SOLUTION", label: "Solution (legacy)", spine: "bg-rose-500", chip: "text-rose-300 border-rose-900", hidden: true },
   { value: "CLARIFYING", label: "Clarifying", spine: "bg-slate-500", chip: "text-slate-300 border-slate-700" },
   { value: "STRUCTURE", label: "Structure", spine: "bg-indigo-500", chip: "text-indigo-300 border-indigo-900" },
 ];
+
+/**
+ * Kinds that lead a step. Anything the coach marks after one of these — an
+ * interviewee exhibit, an interviewer solution — attaches to it rather than
+ * claiming a step of its own (§ sectioning).
+ */
+export const LEADING_KINDS: SectionKind[] = [
+  "PROMPT",
+  "EXHIBIT_PROMPT",
+  "MATH",
+  "BRAINSTORM",
+  "SYNTHESIS",
+];
+
+/**
+ * Kinds that attach to whatever leading section came before them. SOLUTION is
+ * included so casebooks sectioned before the rename behave the same as ones
+ * done since.
+ */
+export const ATTACHING_KINDS: SectionKind[] = ["EXHIBIT", "INTERVIEWER_GUIDE", "SOLUTION"];
+
+/** Only interviewee exhibits are safe to put on a shared screen. */
+export function isCandidateSafeKind(kind: SectionKind) {
+  return kind === "EXHIBIT";
+}
 
 export function sectionKindMeta(kind: SectionKind) {
   return SECTION_KINDS.find((k) => k.value === kind) ?? SECTION_KINDS[0];
@@ -156,3 +181,40 @@ export const PAIRABLE_KINDS: SectionKind[] = [
 export function isPairableKind(kind: SectionKind) {
   return PAIRABLE_KINDS.includes(kind);
 }
+
+/**
+ * Suggestions for "which firm's case is this?". Deliberately a datalist rather
+ * than an enum — firms rebrand and merge, and a club will want entries for its
+ * own alumni-written cases that no fixed list could anticipate.
+ */
+export const FIRM_SUGGESTIONS = [
+  "McKinsey & Company",
+  "Boston Consulting Group",
+  "Bain & Company",
+  "Deloitte",
+  "EY-Parthenon",
+  "Strategy& (PwC)",
+  "KPMG",
+  "Accenture",
+  "Kearney",
+  "Oliver Wyman",
+  "L.E.K. Consulting",
+  "Roland Berger",
+  "Booz Allen Hamilton",
+  "Alvarez & Marsal",
+  "AlixPartners",
+  "ZS Associates",
+  "Simon-Kucher",
+  "Analysis Group",
+  "Cornerstone Research",
+  "Charles River Associates",
+  "Putnam Associates",
+  "Clearview Healthcare Partners",
+  "Health Advances",
+  "Guidehouse",
+  "Huron Consulting",
+  "Capgemini Invent",
+  "IBM Consulting",
+  "Bridgespan",
+  "Dalberg",
+] as const;

@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { createCase } from "@/actions/cases";
 import { CASE_FORMATS, CASE_TYPES, TARGET_ROUNDS } from "@/lib/constants";
+import { FirmField } from "@/components/FirmField";
 
 export function NewCaseForm({
   casebooks,
@@ -52,6 +53,7 @@ export function NewCaseForm({
           </label>
           <input id="industry" name="industry" className="field mt-1" placeholder="Optional" />
         </div>
+        <FirmField />
         <div>
           <label className="label" htmlFor="targetRound">
             Target round

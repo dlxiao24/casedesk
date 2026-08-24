@@ -86,6 +86,10 @@ model Case {
   industry    String?
   targetRound TargetRound?
   format      CaseFormat @default(INTERVIEWER_LED)
+  /// The consulting firm this case comes from or imitates the style of.
+  /// Free text with suggestions rather than an enum — firms merge, rebrand,
+  /// and a club will want school-specific entries an enum could not hold.
+  firm        String?
 
   ownerId String
   owner   User   @relation(fields: [ownerId], references: [id])

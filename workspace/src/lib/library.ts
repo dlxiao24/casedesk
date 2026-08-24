@@ -6,6 +6,7 @@ export type LibraryFilters = {
   q?: string;
   caseType?: string;
   industry?: string;
+  firm?: string;
   format?: string;
   targetRound?: string;
   casebookId?: string;
@@ -35,6 +36,7 @@ export function parseFilters(params: Record<string, string | string[] | undefine
     q: one("q"),
     caseType: one("caseType"),
     industry: one("industry"),
+    firm: one("firm"),
     format: one("format"),
     targetRound: one("targetRound"),
     casebookId: one("casebookId"),
@@ -63,6 +65,7 @@ export async function libraryRows(userId: string, filters: LibraryFilters) {
   if (filters.targetRound) where.targetRound = filters.targetRound as never;
   if (filters.casebookId) where.casebookId = filters.casebookId;
   if (filters.industry) where.industry = { contains: filters.industry, mode: "insensitive" };
+  if (filters.firm) where.firm = { contains: filters.firm, mode: "insensitive" };
 
   if (filters.quality) {
     if (filters.quality === "unrated") where.caseQuality = null;
@@ -87,6 +90,7 @@ export async function libraryRows(userId: string, filters: LibraryFilters) {
       { title: { contains: q, mode: "insensitive" } },
       { notes: { contains: q, mode: "insensitive" } },
       { industry: { contains: q, mode: "insensitive" } },
+      { firm: { contains: q, mode: "insensitive" } },
       { coachCases: { some: { userId, personalNotes: { contains: q, mode: "insensitive" } } } },
       { casebook: { searchText: { contains: q.toLowerCase() } } },
       { casebook: { title: { contains: q, mode: "insensitive" } } },
@@ -151,4 +155,16 @@ export async function knownIndustries(): Promise<string[]> {
     take: 100,
   });
   return rows.map((r) => r.industry!).filter(Boolean);
+}
+
+/** Distinct firms already in use, for the filter dropdown. */
+export async function knownFirms(): Promise<string[]> {
+  const rows = await db.case.findMany({
+    where: { firm: { not: null } },
+    select: { firm: true },
+    distinct: ["firm"],
+    orderBy: { firm: "asc" },
+    take: 100,
+  });
+  return rows.map((r) => r.firm!).filter(Boolean);
 }

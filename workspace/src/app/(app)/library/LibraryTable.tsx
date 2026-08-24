@@ -12,6 +12,7 @@ export type Row = {
   title: string;
   caseType: CaseType;
   industry: string | null;
+  firm: string | null;
   format: CaseFormat;
   targetRound: TargetRound | null;
   source: string;
@@ -77,6 +78,7 @@ export function LibraryTable({ rows }: { rows: Row[] }) {
                   <div className="text-2xs text-faint">
                     {row.source}
                     {row.industry ? ` · ${row.industry}` : ""}
+                    {row.firm ? ` · ${row.firm}` : ""}
                     {row.sectionCount > 0 ? ` · ${row.sectionCount} sections` : " · unsectioned"}
                   </div>
                 </td>
