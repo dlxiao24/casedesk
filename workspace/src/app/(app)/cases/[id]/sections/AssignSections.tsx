@@ -387,8 +387,12 @@ export function AssignSections({
                       onDrop={(mode) => applyDrop({ sig, mode })}
                     />
 
-                    {(node.children.length > 0 || dragging) && (
-                      <ul className="ml-5 border-l border-rule pl-2">
+                    <ul
+                      className={clsx(
+                        "ml-5 pl-2",
+                        node.children.length > 0 && "border-l border-rule",
+                      )}
+                    >
                         {node.children.map((child, j) => {
                           const childSig = signature(child);
                           return (
@@ -415,21 +419,22 @@ export function AssignSections({
                           );
                         })}
 
-                        {/* A standing target while dragging, so attaching a
+                        {/* A standing target during a drag, so attaching a
                             second and third subsection is one obvious move
-                            rather than a hunt for the right edge of a row. */}
-                        {dragging && dragging !== sig && (
-                          <li>
-                            <AttachSlot
-                              label={labelFor(node.section)}
-                              active={dropAt?.sig === sig && dropAt.mode === "child"}
-                              onHover={() => setDropAt({ sig, mode: "child" })}
-                              onDrop={() => applyDrop({ sig, mode: "child" })}
-                            />
-                          </li>
-                        )}
+                            rather than a hunt for the right edge of a row. It
+                            is always mounted and always occupies its space:
+                            adding it on dragstart re-laid out the list and
+                            cancelled the drag. */}
+                        <li>
+                          <AttachSlot
+                            label={labelFor(node.section)}
+                            visible={Boolean(dragging) && dragging !== sig}
+                            active={dropAt?.sig === sig && dropAt.mode === "child"}
+                            onHover={() => setDropAt({ sig, mode: "child" })}
+                            onDrop={() => applyDrop({ sig, mode: "child" })}
+                          />
+                        </li>
                       </ul>
-                    )}
 
                     {i === tree.length - 1 && (
                       <DropLine active={dropAt?.sig === sig && dropAt.mode === "after"} />
@@ -478,11 +483,13 @@ function DropLine({ active }: { active: boolean }) {
  */
 function AttachSlot({
   label,
+  visible,
   active,
   onHover,
   onDrop,
 }: {
   label: string;
+  visible: boolean;
   active: boolean;
   onHover: () => void;
   onDrop: () => void;
@@ -490,18 +497,20 @@ function AttachSlot({
   return (
     <div
       onDragOver={(e) => {
+        if (!visible) return;
         e.preventDefault();
         onHover();
       }}
       onDrop={(e) => {
+        if (!visible) return;
         e.preventDefault();
         onDrop();
       }}
       className={clsx(
-        "my-0.5 rounded border border-dashed px-2 py-1.5 text-2xs transition-colors",
-        active
-          ? "border-accent bg-accent/15 text-ink"
-          : "border-rule/70 text-faint hover:border-faint",
+        "my-0.5 flex h-6 items-center rounded border border-dashed px-2 text-2xs transition-colors",
+        !visible && "pointer-events-none border-transparent text-transparent",
+        visible && active && "border-accent bg-accent/15 text-ink",
+        visible && !active && "border-rule/70 text-faint hover:border-faint",
       )}
     >
       ⤷ attach under {label}
@@ -554,7 +563,12 @@ function SectionRow({
         e.dataTransfer.effectAllowed = "move";
         // Firefox refuses to start a drag without payload.
         e.dataTransfer.setData("text/plain", number);
-        onDragStart();
+        // Deferred by a tick on purpose. Flagging the drag makes every step
+        // grow an "attach under" slot, and re-laying out during dragstart moves
+        // the dragged row out from under the pointer — which Chrome treats as a
+        // cancelled drag. Only the top row survived that, because only it never
+        // moved. Letting the browser take its drag snapshot first fixes it.
+        window.setTimeout(onDragStart, 0);
       }}
       onDragEnd={onDragEnd}
       onDragOver={(e) => {
