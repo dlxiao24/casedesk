@@ -1,13 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import clsx from "clsx";
 import type { SectionKind } from "@prisma/client";
 import { saveSections } from "@/actions/casebooks";
 import { PageGrid, type PageMark } from "@/components/PageGrid";
 import { ZoomControl, useZoom } from "@/components/ZoomControl";
-import { ATTACHING_KINDS, LEADING_KINDS, SECTION_KINDS, sectionKindMeta } from "@/lib/constants";
+import {
+  ATTACHING_KINDS,
+  LEADING_KINDS,
+  NON_MERGING_KINDS,
+  SECTION_KINDS,
+  sectionKindMeta,
+} from "@/lib/constants";
 
 type Existing = {
   id?: string;
@@ -103,6 +109,45 @@ export function AssignSections({
   const [dragging, setDragging] = useState<string | null>(null);
   const [dropAt, setDropAt] = useState<DropTarget | null>(null);
 
+  /**
+   * Number keys work anywhere on the screen, not just while the grid itself
+   * holds focus — clicking a page focuses that page's button, and expecting the
+   * coach to know which element is focused before pressing 3 is a bad deal.
+   * Typing in a name field is the one place they stay literal.
+   */
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+
+      const hotkey = SECTION_KINDS.find((k) => k.hotkey === e.key);
+      if (hotkey) {
+        e.preventDefault();
+        assign(cursor, hotkey.value);
+        setCursor((c) => Math.min(endPage, c + 1));
+      } else if (e.key === "Backspace" || e.key === "Delete") {
+        e.preventDefault();
+        assign(cursor, null);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setCursor((c) => Math.min(endPage, c + 1));
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setCursor((c) => Math.max(startPage, c - 1));
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [cursor, endPage, startPage]);
+
   function assign(page: number, kind: SectionKind | null) {
     setAssigned((a) => {
       const next = { ...a };
@@ -119,7 +164,8 @@ export function AssignSections({
       const kind = assigned[p];
       if (!kind) continue;
       const last = out[out.length - 1];
-      if (last && last.kind === kind && last.endPage === p - 1) last.endPage = p;
+      const mergeable = last && last.kind === kind && last.endPage === p - 1;
+      if (mergeable && !NON_MERGING_KINDS.includes(kind)) last.endPage = p;
       else out.push({ kind, startPage: p, endPage: p });
     }
     return out;
@@ -322,23 +368,6 @@ export function AssignSections({
             if (page === cursor && assigned[page]) assign(page, null);
             else setCursor(page);
           }}
-          onKeyDown={(e) => {
-            const hotkey = numberedKeys.find((k) => k.hotkey === e.key);
-            if (hotkey) {
-              e.preventDefault();
-              assign(cursor, hotkey.value);
-              setCursor((c) => Math.min(endPage, c + 1));
-            } else if (e.key === "ArrowRight") {
-              e.preventDefault();
-              setCursor((c) => Math.min(endPage, c + 1));
-            } else if (e.key === "ArrowLeft") {
-              e.preventDefault();
-              setCursor((c) => Math.max(startPage, c - 1));
-            } else if (e.key === "Backspace" || e.key === "Delete") {
-              e.preventDefault();
-              assign(cursor, null);
-            }
-          }}
         />
       </div>
 
@@ -346,7 +375,7 @@ export function AssignSections({
         <div className="rounded border border-rule bg-panel p-3">
           <h2 className="text-sm text-ink">Keys</h2>
           <p className="mt-0.5 text-2xs text-faint">
-            Click the grid, then press a number. The cursor advances on its own. Click a page a
+            Click a page, then press a number. The cursor advances on its own. Click a page a
             second time to clear it, or press Delete.
           </p>
           <ul className="mt-2 space-y-1">
@@ -372,7 +401,8 @@ export function AssignSections({
             ))}
           </ul>
           <p className="mt-2 text-2xs text-faint">
-            Keys 6 and 7 attach to whichever step you marked last.
+            Key 7 attaches to whichever step you marked last. Everything else starts its own
+            step, and consecutive interviewee exhibits stay separate.
           </p>
           {Object.keys(suggestions).length > 0 && (
             <button className="btn mt-3 w-full justify-center" onClick={acceptAllSuggestions}>

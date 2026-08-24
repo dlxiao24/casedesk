@@ -327,3 +327,26 @@ export async function abandonSession(sessionId: string) {
   revalidatePath("/sessions");
   redirect("/sessions");
 }
+
+/**
+ * Leave a case without producing feedback.
+ *
+ * Distinct from finishing: nothing is scored and no report is drafted. Elapsed
+ * time and every note are kept, so the record of what happened survives even
+ * though the session is closed out as abandoned.
+ */
+export async function exitSession(sessionId: string, totalSeconds: number) {
+  await requireUser();
+  const session = await db.session.findUniqueOrThrow({
+    where: { id: sessionId },
+    select: { locked: true },
+  });
+  if (!session.locked) {
+    await db.session.update({
+      where: { id: sessionId },
+      data: { status: "ABANDONED", endedAt: new Date(), totalSeconds },
+    });
+  }
+  revalidatePath("/sessions");
+  redirect("/library");
+}

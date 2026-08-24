@@ -110,9 +110,11 @@ A few decisions worth knowing before you change things:
 | `Cmd/Ctrl + K` | Jump-to-section palette |
 | `R` (outside a note field) | Reveal / hide a solution |
 | `Space` (outside a note field) | Pause / resume the timer |
-| `Cmd/Ctrl + S` | End case, go to wrap-up |
+| `Cmd/Ctrl + S` | Finish case, go to wrap-up (confirms first) |
 
-In the sectioning grid, `1`–`7` assign a section kind to the selected page and advance; `0` clears.
+In the sectioning grid, `1`–`7` assign a section kind to the selected page and advance;
+Backspace clears. Key 7 (interviewer solution) attaches to the step before it; everything
+else starts its own step.
 
 ---
 

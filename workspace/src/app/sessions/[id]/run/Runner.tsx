@@ -4,7 +4,13 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import clsx from "clsx";
 import type { SectionKind } from "@prisma/client";
-import { addSection, endSession, saveElapsed, saveSectionNote } from "@/actions/sessions";
+import {
+  addSection,
+  endSession,
+  exitSession,
+  saveElapsed,
+  saveSectionNote,
+} from "@/actions/sessions";
 import { SECTION_KINDS, isHiddenKind, sectionKindMeta } from "@/lib/constants";
 import { clock } from "@/lib/format";
 import { SaveIndicator, useAutosave } from "@/lib/useAutosave";
@@ -173,9 +179,23 @@ export function Runner({
 
   const [ending, setEnding] = useState(false);
   const finish = useCallback(() => {
+    if (!window.confirm("Finish this case and go to scoring? The timer stops here.")) return;
     setEnding(true);
     startTransition(async () => {
       await endSession(sessionId, total);
+    });
+  }, [sessionId, total]);
+
+  /** Leaving without scoring. Notes are kept; no report is produced. */
+  const exit = useCallback(() => {
+    const ok = window.confirm(
+      "Exit without finishing? Your notes and the time so far are saved, but the session is " +
+        "closed as abandoned and there will be no feedback report.",
+    );
+    if (!ok) return;
+    setEnding(true);
+    startTransition(async () => {
+      await exitSession(sessionId, total);
     });
   }, [sessionId, total]);
 
@@ -316,8 +336,11 @@ export function Runner({
         >
           Exhibit view ↗
         </a>
+        <button className="btn btn-quiet py-0" onClick={exit} disabled={ending}>
+          Exit case
+        </button>
         <button className="btn py-0" onClick={finish} disabled={ending}>
-          {ending ? "Ending…" : "End case ⌘S"}
+          {ending ? "Ending…" : "Finish case ⌘S"}
         </button>
       </header>
 

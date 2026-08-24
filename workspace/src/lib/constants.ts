@@ -66,11 +66,11 @@ export const SECTION_KINDS: {
 }[] = [
   { value: "PROMPT", label: "Prompt", hotkey: "1", spine: "bg-sky-500", chip: "text-sky-300 border-sky-900" },
   { value: "EXHIBIT_PROMPT", label: "Exhibit (prompt)", hotkey: "2", spine: "bg-violet-300", chip: "text-violet-200 border-violet-900" },
-  { value: "MATH", label: "Math", hotkey: "3", spine: "bg-amber-500", chip: "text-amber-300 border-amber-900" },
-  { value: "BRAINSTORM", label: "Brainstorm", hotkey: "4", spine: "bg-teal-500", chip: "text-teal-300 border-teal-900" },
-  { value: "SYNTHESIS", label: "Synthesis/Recommendation", hotkey: "5", spine: "bg-emerald-500", chip: "text-emerald-300 border-emerald-900" },
-  { value: "INTERVIEWER_GUIDE", label: "Interviewer solution", hotkey: "6", spine: "bg-rose-700", chip: "text-rose-300 border-rose-900", hidden: true },
-  { value: "EXHIBIT", label: "Interviewee exhibit", hotkey: "7", spine: "bg-violet-500", chip: "text-violet-300 border-violet-900" },
+  { value: "EXHIBIT", label: "Interviewee exhibit", hotkey: "3", spine: "bg-violet-500", chip: "text-violet-300 border-violet-900" },
+  { value: "MATH", label: "Math", hotkey: "4", spine: "bg-amber-500", chip: "text-amber-300 border-amber-900" },
+  { value: "BRAINSTORM", label: "Brainstorm", hotkey: "5", spine: "bg-teal-500", chip: "text-teal-300 border-teal-900" },
+  { value: "SYNTHESIS", label: "Synthesis/Recommendation", hotkey: "6", spine: "bg-emerald-500", chip: "text-emerald-300 border-emerald-900" },
+  { value: "INTERVIEWER_GUIDE", label: "Interviewer solution", hotkey: "7", spine: "bg-rose-700", chip: "text-rose-300 border-rose-900", hidden: true },
   { value: "CLARIFYING", label: "Clarifying", spine: "bg-slate-500", chip: "text-slate-300 border-slate-700" },
   { value: "STRUCTURE", label: "Structure", spine: "bg-indigo-500", chip: "text-indigo-300 border-indigo-900" },
 ];
@@ -83,13 +83,26 @@ export const SECTION_KINDS: {
 export const LEADING_KINDS: SectionKind[] = [
   "PROMPT",
   "EXHIBIT_PROMPT",
+  "EXHIBIT",
   "MATH",
   "BRAINSTORM",
   "SYNTHESIS",
 ];
 
-/** Kinds that attach to whatever leading section came before them. */
-export const ATTACHING_KINDS: SectionKind[] = ["EXHIBIT", "INTERVIEWER_GUIDE"];
+/**
+ * Kinds that attach to whatever leading section came before them.
+ *
+ * Interviewee exhibits are deliberately NOT here: plenty of them stand on their
+ * own as a step the candidate is walked through, and guessing wrong costs more
+ * than the occasional drag to attach one.
+ */
+export const ATTACHING_KINDS: SectionKind[] = ["INTERVIEWER_GUIDE"];
+
+/**
+ * Kinds where consecutive pages stay separate steps instead of merging.
+ * Exhibit 4 and Exhibit 5 usually sit back to back and are two things, not one.
+ */
+export const NON_MERGING_KINDS: SectionKind[] = ["EXHIBIT"];
 
 /** Only interviewee exhibits are safe to put on a shared screen. */
 export function isCandidateSafeKind(kind: SectionKind) {
