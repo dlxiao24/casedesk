@@ -34,7 +34,7 @@ export async function loadReportModel(
 
   const notes = new Map(session.sectionNotes.map((n) => [n.sectionId, n]));
   const visible = session.case.sections.filter(
-    (s) => s.kind !== "SOLUTION" && s.kind !== "INTERVIEWER_GUIDE" && !s.isSolution,
+    (s) => s.kind !== "INTERVIEWER_GUIDE" && !s.isSolution,
   );
 
   const source = session.case.casebook ? casebookLabel(session.case.casebook) : null;

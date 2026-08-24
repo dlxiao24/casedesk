@@ -54,7 +54,7 @@ export function guessCaseTitle(pageText: string): string | null {
  */
 const KIND_RULES: { kind: SectionKind; patterns: RegExp[] }[] = [
   { kind: "INTERVIEWER_GUIDE", patterns: [/interviewer\s+guid(e|ance)/i, /notes\s+to\s+the\s+interviewer/i] },
-  { kind: "SOLUTION", patterns: [/\bsolution\b/i, /\bsample\s+answer\b/i, /\banswer\s*:/i, /\bmodel\s+answer\b/i] },
+  { kind: "INTERVIEWER_GUIDE", patterns: [/\bsolution\b/i, /\bsample\s+answer\b/i, /\banswer\s*:/i, /\bmodel\s+answer\b/i] },
   { kind: "EXHIBIT", patterns: [/\bexhibit\s*\d*/i, /\bappendix\s*\d*/i, /\bchart\s*\d/i] },
   { kind: "MATH", patterns: [/\bmath\b/i, /\bcalculation(s)?\b/i, /\bcompute\b/i, /\bquestion\s*\d+/i] },
   { kind: "BRAINSTORM", patterns: [/\bbrainstorm\b/i, /\bideation\b/i, /\bcreativity\b/i] },

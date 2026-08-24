@@ -11,6 +11,7 @@ import { ReadinessPicker } from "./ReadinessPicker";
 import { SectionList } from "./SectionList";
 import { SharedNotes } from "./SharedNotes";
 import { CaseFields } from "./CaseFields";
+import { ArchiveCase } from "./ArchiveCase";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
       casebook: true,
       owner: { select: { id: true, name: true } },
       sections: { orderBy: { order: "asc" } },
+      _count: { select: { sessions: true } },
       sessions: {
         where: { archived: false },
         orderBy: { startedAt: "desc" },
@@ -60,6 +62,12 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="space-y-6">
+      {kase.archived && (
+        <p className="rounded border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn">
+          This case is archived. It is hidden from the library unless you turn on the Archived
+          filter. Past sessions and reports are untouched.
+        </p>
+      )}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-lg text-ink">{kase.title}</h1>
@@ -95,6 +103,12 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
               startPage: kase.startPage,
               endPage: kase.endPage,
             }}
+          />
+          <ArchiveCase
+            caseId={kase.id}
+            archived={kase.archived}
+            canEdit={isOwner || user.role === "ADMIN"}
+            sessionCount={kase._count.sessions}
           />
           <ReadinessPicker caseId={kase.id} state={state} />
           <Link href={`/sessions/new?caseId=${kase.id}`} className="btn btn-primary">

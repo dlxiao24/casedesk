@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import { Document, Page, pdfjs } from "react-pdf";
 import { configureWorker } from "@/lib/pdf";
@@ -58,12 +58,23 @@ export function PageGridInner({
     [firstPage, pageCount],
   );
 
-  // Measured before paint: measuring in a normal effect leaves the first frame
-  // laid out at a guessed width, which is why the grid used to look wrong until
-  // the zoom was touched.
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
+  const observerRef = useRef<ResizeObserver | null>(null);
+
+  /**
+   * Measured through a callback ref, not a mount effect.
+   *
+   * This container is rendered *inside* react-pdf's <Document>, which shows a
+   * loading placeholder before it mounts its children. A mount-time effect
+   * therefore ran while the element did not exist yet, bailed, and — with empty
+   * deps — never ran again, leaving the width at 0 and the grid permanently
+   * empty. A callback ref fires whenever the node actually attaches.
+   */
+  const setScrollEl = useCallback((el: HTMLDivElement | null) => {
+    scrollRef.current = el;
+    observerRef.current?.disconnect();
+    observerRef.current = null;
     if (!el) return;
+
     const measure = () => {
       setWidth(el.clientWidth - PADDING * 2);
       setHeight(el.clientHeight);
@@ -71,8 +82,10 @@ export function PageGridInner({
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
-    return () => observer.disconnect();
+    observerRef.current = observer;
   }, []);
+
+  useEffect(() => () => observerRef.current?.disconnect(), []);
 
   const cellWidth = width > 0 ? Math.floor((width - GAP * (columns - 1)) / columns) : 0;
   // Caption bar plus border.
@@ -98,7 +111,7 @@ export function PageGridInner({
 
   const body = (
     <div
-      ref={scrollRef}
+      ref={setScrollEl}
       tabIndex={0}
       onKeyDown={onKeyDown}
       onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}

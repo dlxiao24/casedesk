@@ -71,9 +71,6 @@ export const SECTION_KINDS: {
   { value: "SYNTHESIS", label: "Synthesis/Recommendation", hotkey: "5", spine: "bg-emerald-500", chip: "text-emerald-300 border-emerald-900" },
   { value: "INTERVIEWER_GUIDE", label: "Interviewer solution", hotkey: "6", spine: "bg-rose-700", chip: "text-rose-300 border-rose-900", hidden: true },
   { value: "EXHIBIT", label: "Interviewee exhibit", hotkey: "7", spine: "bg-violet-500", chip: "text-violet-300 border-violet-900" },
-  // Reachable from the menus but off the number row: legacy content and the
-  // occasional hand-made section still need somewhere to live.
-  { value: "SOLUTION", label: "Solution (legacy)", spine: "bg-rose-500", chip: "text-rose-300 border-rose-900", hidden: true },
   { value: "CLARIFYING", label: "Clarifying", spine: "bg-slate-500", chip: "text-slate-300 border-slate-700" },
   { value: "STRUCTURE", label: "Structure", spine: "bg-indigo-500", chip: "text-indigo-300 border-indigo-900" },
 ];
@@ -91,12 +88,8 @@ export const LEADING_KINDS: SectionKind[] = [
   "SYNTHESIS",
 ];
 
-/**
- * Kinds that attach to whatever leading section came before them. SOLUTION is
- * included so casebooks sectioned before the rename behave the same as ones
- * done since.
- */
-export const ATTACHING_KINDS: SectionKind[] = ["EXHIBIT", "INTERVIEWER_GUIDE", "SOLUTION"];
+/** Kinds that attach to whatever leading section came before them. */
+export const ATTACHING_KINDS: SectionKind[] = ["EXHIBIT", "INTERVIEWER_GUIDE"];
 
 /** Only interviewee exhibits are safe to put on a shared screen. */
 export function isCandidateSafeKind(kind: SectionKind) {
@@ -109,7 +102,7 @@ export function sectionKindMeta(kind: SectionKind) {
 
 /** Kinds that are blurred in the runner until revealed (§4.3, §6.2). */
 export function isHiddenKind(kind: SectionKind) {
-  return kind === "SOLUTION" || kind === "INTERVIEWER_GUIDE";
+  return kind === "INTERVIEWER_GUIDE";
 }
 
 /**
@@ -173,7 +166,6 @@ export const PAIRABLE_KINDS: SectionKind[] = [
   "EXHIBIT_PROMPT",
   "PROMPT",
   "STRUCTURE",
-  "SOLUTION",
   "INTERVIEWER_GUIDE",
   "MATH",
 ];

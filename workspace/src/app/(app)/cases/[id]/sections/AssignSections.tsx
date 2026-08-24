@@ -21,6 +21,12 @@ type Existing = {
 
 type Merged = { kind: SectionKind; startPage: number; endPage: number };
 
+/**
+ * Where a dragged step would land. "before"/"after" reorder it at the top
+ * level; "child" attaches it beneath the target's step.
+ */
+type DropTarget = { sig: string; mode: "before" | "after" | "child" };
+
 /** A stable handle for a merged section, so edits survive re-merging. */
 function signature(s: { kind: SectionKind; startPage: number }) {
   return `${s.kind}:${s.startPage}`;
@@ -95,7 +101,7 @@ export function AssignSections({
   const [saved, setSaved] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [dragging, setDragging] = useState<string | null>(null);
-  const [dropHint, setDropHint] = useState<{ sig: string; nest: boolean } | null>(null);
+  const [dropAt, setDropAt] = useState<DropTarget | null>(null);
 
   function assign(page: number, kind: SectionKind | null) {
     setAssigned((a) => {
@@ -206,29 +212,37 @@ export function AssignSections({
 
   // ---- Drag and drop ----
 
-  function handleDrop(targetSig: string, nest: boolean) {
+  /** A parent cannot become someone's child, and nesting stops at one level. */
+  function canNestUnder(source: string, parent: string) {
+    if (source === parent) return false;
+    const sourceNode = tree.find((n) => signature(n.section) === source);
+    return !sourceNode || sourceNode.children.length === 0;
+  }
+
+  function applyDrop(target: DropTarget) {
     const source = dragging;
     setDragging(null);
-    setDropHint(null);
-    if (!source || source === targetSig) return;
+    setDropAt(null);
+    if (!source) return;
 
-    if (nest) {
-      // Never nest something that already has children under it.
-      const hasChildren = tree.some(
-        (n) => signature(n.section) === source && n.children.length > 0,
-      );
-      if (hasChildren) return;
-      setManualNest((m) => ({ ...m, [source]: targetSig }));
+    if (target.mode === "child") {
+      // Dropping onto a child means "join that child's parent".
+      const parent = parentOf(target.sig) ?? target.sig;
+      if (!canNestUnder(source, parent)) return;
+      setManualNest((m) => ({ ...m, [source]: parent }));
       return;
     }
 
-    // Reorder at the top level; pull the section out of any nesting first.
+    if (source === target.sig) return;
+
+    // Reordering pulls the section out to the top level first.
     setManualNest((m) => ({ ...m, [source]: null }));
     setManualOrder(() => {
       const tops = tree.map((n) => signature(n.section));
-      const without = tops.filter((s) => s !== source);
-      const at = without.indexOf(targetSig);
-      const insertAt = at < 0 ? without.length : at;
+      const withSource = tops.includes(source) ? tops : [...tops, source];
+      const without = withSource.filter((x) => x !== source);
+      const at = without.indexOf(target.sig);
+      const insertAt = at < 0 ? without.length : target.mode === "after" ? at + 1 : at;
       return [...without.slice(0, insertAt), source, ...without.slice(insertAt)];
     });
   }
@@ -344,66 +358,85 @@ export function AssignSections({
             <span className="text-2xs text-faint">{tree.length}</span>
           </div>
           <p className="mt-0.5 text-2xs text-faint">
-            Drag to reorder. Drop onto the right edge of a step to attach beneath it.
+            Drag a step to reorder it. Drop on the right third of a row, or on an "attach under"
+            slot, to tuck it beneath that step.
           </p>
 
           {tree.length === 0 ? (
             <p className="mt-2 text-2xs text-faint">Nothing assigned yet.</p>
           ) : (
-            <ul className="mt-2 space-y-1">
-              {tree.map((node, i) => (
-                <li key={signature(node.section)}>
-                  <SectionRow
-                    number={String(i + 1)}
-                    section={node.section}
-                    label={labelFor(node.section)}
-                    onLabel={(v) =>
-                      setLabels((l) => ({ ...l, [signature(node.section)]: v }))
-                    }
-                    dragging={dragging === signature(node.section)}
-                    hint={
-                      dropHint?.sig === signature(node.section) ? dropHint.nest : null
-                    }
-                    onDragStart={() => setDragging(signature(node.section))}
-                    onDragEnd={() => {
-                      setDragging(null);
-                      setDropHint(null);
-                    }}
-                    onDragOver={(nest) =>
-                      setDropHint({ sig: signature(node.section), nest })
-                    }
-                    onDrop={(nest) => handleDrop(signature(node.section), nest)}
-                  />
-                  {node.children.length > 0 && (
-                    <ul className="ml-4 mt-1 space-y-1 border-l border-rule pl-2">
-                      {node.children.map((child, j) => (
-                        <li key={signature(child)}>
-                          <SectionRow
-                            number={`${i + 1}.${j + 1}`}
-                            section={child}
-                            label={labelFor(child)}
-                            onLabel={(v) =>
-                              setLabels((l) => ({ ...l, [signature(child)]: v }))
-                            }
-                            dragging={dragging === signature(child)}
-                            hint={dropHint?.sig === signature(child) ? dropHint.nest : null}
-                            onDragStart={() => setDragging(signature(child))}
-                            onDragEnd={() => {
-                              setDragging(null);
-                              setDropHint(null);
-                            }}
-                            onDragOver={(nest) => setDropHint({ sig: signature(child), nest })}
-                            onDrop={(nest) => handleDrop(signature(child), nest)}
-                            onDetach={() =>
-                              setManualNest((m) => ({ ...m, [signature(child)]: null }))
-                            }
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
+            <ul className="mt-2">
+              {tree.map((node, i) => {
+                const sig = signature(node.section);
+                return (
+                  <li key={sig}>
+                    <DropLine active={dropAt?.sig === sig && dropAt.mode === "before"} />
+                    <SectionRow
+                      number={String(i + 1)}
+                      section={node.section}
+                      label={labelFor(node.section)}
+                      onLabel={(v) => setLabels((l) => ({ ...l, [sig]: v }))}
+                      dragging={dragging === sig}
+                      attachTarget={dropAt?.sig === sig && dropAt.mode === "child"}
+                      onDragStart={() => setDragging(sig)}
+                      onDragEnd={() => {
+                        setDragging(null);
+                        setDropAt(null);
+                      }}
+                      onHover={(mode) => setDropAt({ sig, mode })}
+                      onDrop={(mode) => applyDrop({ sig, mode })}
+                    />
+
+                    {(node.children.length > 0 || dragging) && (
+                      <ul className="ml-5 border-l border-rule pl-2">
+                        {node.children.map((child, j) => {
+                          const childSig = signature(child);
+                          return (
+                            <li key={childSig}>
+                              <SectionRow
+                                number={`${i + 1}.${j + 1}`}
+                                section={child}
+                                label={labelFor(child)}
+                                onLabel={(v) => setLabels((l) => ({ ...l, [childSig]: v }))}
+                                dragging={dragging === childSig}
+                                attachTarget={dropAt?.sig === childSig && dropAt.mode === "child"}
+                                onDragStart={() => setDragging(childSig)}
+                                onDragEnd={() => {
+                                  setDragging(null);
+                                  setDropAt(null);
+                                }}
+                                onHover={(mode) => setDropAt({ sig: childSig, mode })}
+                                onDrop={(mode) => applyDrop({ sig: childSig, mode })}
+                                onDetach={() =>
+                                  setManualNest((m) => ({ ...m, [childSig]: null }))
+                                }
+                              />
+                            </li>
+                          );
+                        })}
+
+                        {/* A standing target while dragging, so attaching a
+                            second and third subsection is one obvious move
+                            rather than a hunt for the right edge of a row. */}
+                        {dragging && dragging !== sig && (
+                          <li>
+                            <AttachSlot
+                              label={labelFor(node.section)}
+                              active={dropAt?.sig === sig && dropAt.mode === "child"}
+                              onHover={() => setDropAt({ sig, mode: "child" })}
+                              onDrop={() => applyDrop({ sig, mode: "child" })}
+                            />
+                          </li>
+                        )}
+                      </ul>
+                    )}
+
+                    {i === tree.length - 1 && (
+                      <DropLine active={dropAt?.sig === sig && dropAt.mode === "after"} />
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
 
@@ -425,16 +458,67 @@ export function AssignSections({
   );
 }
 
+
+/** A 2px accent rule showing exactly where a reordered step will land. */
+function DropLine({ active }: { active: boolean }) {
+  return (
+    <div
+      className={clsx(
+        "my-0.5 h-0.5 rounded transition-colors",
+        active ? "bg-accent" : "bg-transparent",
+      )}
+    />
+  );
+}
+
+/**
+ * The standing "attach here" target under a step. Visible for the whole drag,
+ * so adding a second or third subsection is a large, obvious drop rather than a
+ * hunt for the right-hand strip of a row.
+ */
+function AttachSlot({
+  label,
+  active,
+  onHover,
+  onDrop,
+}: {
+  label: string;
+  active: boolean;
+  onHover: () => void;
+  onDrop: () => void;
+}) {
+  return (
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        onHover();
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDrop();
+      }}
+      className={clsx(
+        "my-0.5 rounded border border-dashed px-2 py-1.5 text-2xs transition-colors",
+        active
+          ? "border-accent bg-accent/15 text-ink"
+          : "border-rule/70 text-faint hover:border-faint",
+      )}
+    >
+      ⤷ attach under {label}
+    </div>
+  );
+}
+
 function SectionRow({
   number,
   section,
   label,
   onLabel,
   dragging,
-  hint,
+  attachTarget,
   onDragStart,
   onDragEnd,
-  onDragOver,
+  onHover,
   onDrop,
   onDetach,
 }: {
@@ -443,15 +527,25 @@ function SectionRow({
   label: string;
   onLabel: (value: string) => void;
   dragging: boolean;
-  /** true = will nest here, false = will reorder here, null = not a target. */
-  hint: boolean | null;
+  attachTarget: boolean;
   onDragStart: () => void;
   onDragEnd: () => void;
-  onDragOver: (nest: boolean) => void;
-  onDrop: (nest: boolean) => void;
+  onHover: (mode: DropTarget["mode"]) => void;
+  onDrop: (mode: DropTarget["mode"]) => void;
   onDetach?: () => void;
 }) {
   const meta = sectionKindMeta(section.kind);
+
+  /**
+   * Right-hand third attaches; otherwise the vertical half decides whether the
+   * step lands above or below. Reading position rather than asking for a
+   * modifier key keeps it to one gesture.
+   */
+  function modeFor(e: React.DragEvent): DropTarget["mode"] {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (e.clientX > rect.left + rect.width * 0.66) return "child";
+    return e.clientY < rect.top + rect.height / 2 ? "before" : "after";
+  }
 
   return (
     <div
@@ -465,26 +559,22 @@ function SectionRow({
       onDragEnd={onDragEnd}
       onDragOver={(e) => {
         e.preventDefault();
-        const rect = e.currentTarget.getBoundingClientRect();
-        onDragOver(e.clientX > rect.left + rect.width * 0.62);
+        onHover(modeFor(e));
       }}
       onDrop={(e) => {
         e.preventDefault();
-        const rect = e.currentTarget.getBoundingClientRect();
-        onDrop(e.clientX > rect.left + rect.width * 0.62);
+        onDrop(modeFor(e));
       }}
       className={clsx(
-        "flex items-center gap-1.5 rounded border px-1.5 py-1 transition-colors",
-        dragging ? "opacity-40" : "",
-        hint === true && "border-accent bg-accent/10",
-        hint === false && "border-accent border-dashed",
-        hint === null && "border-transparent",
+        "group flex items-center gap-1.5 rounded border px-1.5 py-1 transition-colors",
+        dragging ? "opacity-30" : "",
+        attachTarget ? "border-accent bg-accent/15" : "border-transparent",
       )}
     >
       <span className="cursor-grab select-none text-2xs text-faint" aria-hidden>
         ⠿
       </span>
-      <span className="tabular w-8 shrink-0 text-2xs text-muted">{number}</span>
+      <span className="tabular w-9 shrink-0 text-2xs text-muted">{number}</span>
       <span className={clsx("h-5 w-1 shrink-0 rounded-sm", meta.spine)} />
       <input
         className="field py-0.5 text-2xs"

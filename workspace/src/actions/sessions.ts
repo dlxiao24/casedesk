@@ -121,7 +121,7 @@ export async function addSection(caseId: string, kind: SectionKind, label: strin
       kind,
       label: label.trim() || kind,
       order: (last?.order ?? -1) + 1,
-      isSolution: kind === "SOLUTION",
+      isSolution: kind === "INTERVIEWER_GUIDE",
     },
   });
   revalidatePath(`/cases/${caseId}`);

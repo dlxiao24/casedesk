@@ -102,7 +102,7 @@ async function main() {
             targetMins: 3,
           },
           {
-            kind: "SOLUTION",
+            kind: "INTERVIEWER_GUIDE",
             label: "Solution",
             order: 6,
             isSolution: true,

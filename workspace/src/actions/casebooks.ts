@@ -127,7 +127,7 @@ export async function saveSections(
       startPage: s.startPage,
       endPage: s.endPage,
       targetMins: s.targetMins ?? null,
-      isSolution: s.kind === "SOLUTION" || s.kind === "INTERVIEWER_GUIDE",
+      isSolution: s.kind === "INTERVIEWER_GUIDE",
     };
     if (match) {
       unmatched.delete(match.id);
@@ -172,7 +172,7 @@ export async function saveTextSection(input: {
   targetMins?: number | null;
 }) {
   await requireUser();
-  const isHidden = input.kind === "SOLUTION" || input.kind === "INTERVIEWER_GUIDE";
+  const isHidden = input.kind === "INTERVIEWER_GUIDE";
 
   if (input.sectionId) {
     await db.section.update({
