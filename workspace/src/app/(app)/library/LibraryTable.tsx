@@ -144,7 +144,7 @@ export function LibraryTable({ rows, isAdmin }: { rows: Row[]; isAdmin: boolean 
                     />
                   ) : (
                     <Link href={`/sessions/new?caseId=${row.id}`} className="btn btn-primary py-1">
-                      Administer case
+                      Administer
                     </Link>
                   )}
                 </td>
