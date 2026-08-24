@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { signedFileUrl } from "@/actions/casebooks";
 import { guessCaseTitle, looksLikeCaseStart } from "@/lib/heuristics";
 import { SplitCasebook } from "./SplitCasebook";
@@ -9,7 +9,7 @@ import { SplitCasebook } from "./SplitCasebook";
 export const dynamic = "force-dynamic";
 
 export default async function SplitPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireUser();
+  await requireAdmin();
   const { id } = await params;
 
   const casebook = await db.casebook.findUnique({

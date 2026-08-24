@@ -35,6 +35,9 @@ function blank(value: FormDataEntryValue | null) {
  */
 export async function createCase(_prev: { error?: string } | null, form: FormData) {
   const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    return { error: "Only an admin can build the case library." };
+  }
   const parsed = caseInput.safeParse({
     title: form.get("title") ?? "",
     casebookId: blank(form.get("casebookId")),
@@ -60,6 +63,9 @@ export async function createCase(_prev: { error?: string } | null, form: FormDat
 
 export async function updateCase(caseId: string, form: FormData) {
   const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    return { error: "Only an admin can build the case library." };
+  }
   const existing = await db.case.findUniqueOrThrow({ where: { id: caseId } });
   if (existing.ownerId !== user.id && user.role !== "ADMIN") {
     return { error: "Only the case owner can edit these fields." };
@@ -126,6 +132,9 @@ export async function setCaseAttribute(caseId: string, key: string, value: numbe
 
 export async function setArchived(caseId: string, archived: boolean) {
   const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    return { error: "Only an admin can build the case library." };
+  }
   const target = await db.case.findUniqueOrThrow({
     where: { id: caseId },
     select: { ownerId: true },
@@ -208,6 +217,9 @@ export async function appendPersonalNote(caseId: string, text: string) {
  */
 export async function deleteCase(caseId: string) {
   const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    return { error: "Only an admin can build the case library." };
+  }
   const target = await db.case.findUniqueOrThrow({
     where: { id: caseId },
     select: { ownerId: true, title: true, _count: { select: { sessions: true } } },

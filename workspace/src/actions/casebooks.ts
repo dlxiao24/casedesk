@@ -25,6 +25,9 @@ export async function registerCasebook(input: {
   byteSize: number;
 }) {
   const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    return { error: "Only an admin can build the case library." };
+  }
   if (!input.title.trim()) return { error: "A casebook needs a title." };
 
   const casebook = await db.casebook.create({
@@ -65,6 +68,9 @@ export async function createCaseFromRange(input: {
   endPage: number;
 }) {
   const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    return { error: "Only an admin can build the case library." };
+  }
   if (!input.title.trim()) return { error: "Name the case before saving it." };
 
   const created = await db.case.create({
@@ -103,6 +109,9 @@ export async function saveSections(
   }[],
 ) {
   const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    return { error: "Only an admin can build the case library." };
+  }
   const target = await db.case.findUniqueOrThrow({
     where: { id: caseId },
     select: { ownerId: true },
@@ -171,7 +180,10 @@ export async function saveTextSection(input: {
   bodyText: string;
   targetMins?: number | null;
 }) {
-  await requireUser();
+  const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    return { error: "Only an admin can build the case library." };
+  }
   const isHidden = input.kind === "INTERVIEWER_GUIDE";
 
   if (input.sectionId) {
@@ -208,7 +220,10 @@ export async function saveTextSection(input: {
 }
 
 export async function deleteSection(sectionId: string) {
-  await requireUser();
+  const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    return { error: "Only an admin can build the case library." };
+  }
   const section = await db.section.findUniqueOrThrow({ where: { id: sectionId } });
   await db.section.delete({ where: { id: sectionId } });
   revalidatePath(`/cases/${section.caseId}`);
@@ -216,7 +231,10 @@ export async function deleteSection(sectionId: string) {
 }
 
 export async function reorderSection(sectionId: string, direction: -1 | 1) {
-  await requireUser();
+  const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    return { error: "Only an admin can build the case library." };
+  }
   const section = await db.section.findUniqueOrThrow({ where: { id: sectionId } });
   const neighbour = await db.section.findFirst({
     where: {

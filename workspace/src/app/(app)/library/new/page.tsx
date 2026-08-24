@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { NewCaseForm } from "./NewCaseForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewCasePage() {
-  await requireUser();
+  await requireAdmin();
   const casebooks = await db.casebook.findMany({
     select: { id: true, title: true, pageCount: true },
     orderBy: { createdAt: "desc" },

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { signedFileUrl } from "@/actions/casebooks";
 import { guessSectionKind, guessSectionLabel } from "@/lib/heuristics";
 import { AssignSections } from "./AssignSections";
@@ -9,7 +9,7 @@ import { AssignSections } from "./AssignSections";
 export const dynamic = "force-dynamic";
 
 export default async function SectionsPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireUser();
+  await requireAdmin();
   const { id } = await params;
 
   const kase = await db.case.findUnique({

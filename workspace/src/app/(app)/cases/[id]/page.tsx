@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
+import { signedFileUrl } from "@/actions/casebooks";
 import { requireUser } from "@/lib/auth";
 import { CASE_FORMATS, CASE_TYPES, TARGET_ROUNDS } from "@/lib/constants";
 import { ago, shortDate } from "@/lib/format";
@@ -13,6 +14,7 @@ import { SectionList } from "./SectionList";
 import { SharedNotes } from "./SharedNotes";
 import { CaseFields } from "./CaseFields";
 import { ArchiveCase } from "./ArchiveCase";
+import { CaseView } from "./CaseView";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +41,8 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
     },
   });
   if (!kase) notFound();
+
+  const fileUrl = kase.casebook?.fileKey ? await signedFileUrl(kase.casebook.fileKey) : null;
 
   const casebooks = await db.casebook.findMany({
     select: { id: true, title: true, pageCount: true },
@@ -139,6 +143,19 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
               endPage: s.endPage,
               targetMins: s.targetMins,
               bodyText: s.bodyText,
+            }))}
+          />
+
+          <CaseView
+            fileUrl={fileUrl}
+            sections={kase.sections.map((sec) => ({
+              id: sec.id,
+              kind: sec.kind,
+              label: sec.label,
+              startPage: sec.startPage,
+              endPage: sec.endPage,
+              bodyText: sec.bodyText,
+              nested: Boolean(sec.pairedWithId),
             }))}
           />
 

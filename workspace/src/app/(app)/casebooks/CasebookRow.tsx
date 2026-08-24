@@ -33,6 +33,8 @@ export function CasebookRow({
    * a case leaves on its own the moment it is given a casebook.
    */
   virtual = false,
+  /** Coaches use the library; they do not build it. */
+  canAuthor = false,
 }: {
   id: string;
   title: string;
@@ -41,6 +43,7 @@ export function CasebookRow({
   cases: CasebookCase[];
   children?: React.ReactNode;
   virtual?: boolean;
+  canAuthor?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -55,7 +58,7 @@ export function CasebookRow({
         >
           {open ? "▾" : "▸"}
         </button>
-        {virtual ? (
+        {virtual || !canAuthor ? (
           <span className="text-ink">{title}</span>
         ) : (
           <Link href={`/casebooks/${id}/split`} className="text-ink hover:text-accent">
@@ -65,7 +68,7 @@ export function CasebookRow({
         <span className="text-2xs text-faint">{meta}</span>
         <span className="flex-1" />
         <span className="text-2xs text-faint">{footer}</span>
-        {!virtual && (
+        {!virtual && canAuthor && (
           <Link href={`/casebooks/${id}/split`} className="btn btn-quiet py-0.5">
             Split into cases
           </Link>
@@ -116,10 +119,10 @@ export function CasebookRow({
                   </span>
                   <span className="flex-1" />
                   <Link
-                    href={virtual ? `/cases/${c.id}` : `/cases/${c.id}/sections`}
+                    href={virtual || !canAuthor ? `/cases/${c.id}` : `/cases/${c.id}/sections`}
                     className="btn btn-quiet py-0 text-2xs"
                   >
-                    {virtual ? "Open" : "Sections"}
+                    {virtual || !canAuthor ? "Open" : "Sections"}
                   </Link>
                   <Link
                     href={`/sessions/new?caseId=${c.id}`}

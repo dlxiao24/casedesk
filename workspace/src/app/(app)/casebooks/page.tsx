@@ -62,9 +62,11 @@ export default async function CasebooksPage() {
             500 cases on the free tier.
           </p>
         </div>
-        <Link href="/casebooks/new" className="btn btn-primary">
-          Upload casebook
-        </Link>
+        {isAdmin(user) && (
+          <Link href="/casebooks/new" className="btn btn-primary">
+            Upload casebook
+          </Link>
+        )}
       </div>
 
       <div className="rounded border border-rule bg-panel p-3">
@@ -97,6 +99,7 @@ export default async function CasebooksPage() {
           {casebooks.map((cb) => (
             <CasebookRow
               key={cb.id}
+              canAuthor={isAdmin(user)}
               id={cb.id}
               title={cb.title}
               meta={[[cb.school, cb.year].filter(Boolean).join(" "), `${cb.pageCount} pages`, formatBytes(cb.byteSize), cb.sourceKind === "IMAGES" ? "images" : "PDF"].filter(Boolean).join(" · ")}
@@ -119,6 +122,7 @@ export default async function CasebooksPage() {
           {unassigned.length > 0 && (
             <CasebookRow
               virtual
+              canAuthor={isAdmin(user)}
               id="unassigned"
               title="Unassigned cases"
               meta="typed or pasted — no casebook behind them"

@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { supabaseConfigured } from "@/lib/env";
 import { UploadCasebook } from "./UploadCasebook";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewCasebookPage() {
-  await requireUser();
+  await requireAdmin();
 
   return (
     <div className="max-w-2xl space-y-4">

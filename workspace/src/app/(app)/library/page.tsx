@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth";
+import { isAdmin, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { knownFirms, knownIndustries, libraryRows, parseFilters } from "@/lib/library";
 import { LibraryFilterBar } from "./LibraryFilterBar";
@@ -35,14 +35,16 @@ export default async function LibraryPage({
             recently
           </p>
         </div>
-        <div className="flex gap-2">
-          <Link href="/casebooks/new" className="btn">
-            Upload casebook
-          </Link>
-          <Link href="/library/new" className="btn btn-primary">
-            Add case
-          </Link>
-        </div>
+        {isAdmin(user) && (
+          <div className="flex gap-2">
+            <Link href="/casebooks/new" className="btn">
+              Upload casebook
+            </Link>
+            <Link href="/library/new" className="btn btn-primary">
+              Add case
+            </Link>
+          </div>
+        )}
       </div>
 
       <LibraryFilterBar casebooks={casebooks} industries={industries} firms={firms} />
@@ -51,10 +53,12 @@ export default async function LibraryPage({
         <div className="rounded border border-rule bg-panel px-4 py-10 text-center">
           <p className="text-sm text-muted">
             {totalCases === 0
-              ? "No cases yet. Upload a casebook to get started."
+              ? isAdmin(user)
+                ? "No cases yet. Upload a casebook to get started."
+                : "No cases in the library yet. An admin adds them."
               : "No cases match these filters."}
           </p>
-          {totalCases === 0 && (
+          {totalCases === 0 && isAdmin(user) && (
             <Link href="/casebooks/new" className="btn btn-primary mt-3">
               Upload casebook
             </Link>
