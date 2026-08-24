@@ -49,7 +49,7 @@ export function ReportToolbar({
         </Link>
         <span className="flex-1" />
 
-        <label className="flex items-center gap-1.5" title="The record goes last, under its own heading.">
+        <label className="flex items-center gap-1.5" title="Time, feedback and what was said for each section. Goes last, after a page break.">
           <input
             type="checkbox"
             checked={includeRecord}
@@ -61,7 +61,7 @@ export function ReportToolbar({
               })
             }
           />
-          Session record
+          Section detail
         </label>
         <label className="flex items-center gap-1.5">
           <input

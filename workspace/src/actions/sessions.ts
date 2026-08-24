@@ -20,11 +20,24 @@ async function assertUnlocked(sessionId: string) {
 export async function startSession(caseId: string, candidateId: string) {
   const user = await requireUser();
 
-  // A case with no sections is still runnable (§4.4); give it somewhere to write.
+  // A case with no sections is still runnable (§4.4); give it somewhere to
+  // write, and point it at the whole case's pages so the runner shows the
+  // casebook rather than an empty pane.
   const sectionCount = await db.section.count({ where: { caseId } });
   if (sectionCount === 0) {
+    const kase = await db.case.findUniqueOrThrow({
+      where: { id: caseId },
+      select: { startPage: true, endPage: true },
+    });
     await db.section.create({
-      data: { caseId, kind: "PROMPT", label: "Whole case", order: 0 },
+      data: {
+        caseId,
+        kind: "PROMPT",
+        label: "Whole case",
+        order: 0,
+        startPage: kase.startPage,
+        endPage: kase.endPage ?? kase.startPage,
+      },
     });
   }
 

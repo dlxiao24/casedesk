@@ -4,6 +4,7 @@ import { isAdmin, requireUser } from "@/lib/auth";
 import { STORAGE_QUOTA_BYTES, STORAGE_WARN_RATIO } from "@/lib/env";
 import { ago } from "@/lib/format";
 import { DeleteCasebook } from "./DeleteCasebook";
+import { CasebookRow } from "./CasebookRow";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,16 @@ export default async function CasebooksPage() {
       include: {
         uploader: { select: { name: true } },
         _count: { select: { cases: true } },
+        cases: {
+          orderBy: { startPage: "asc" },
+          select: {
+            id: true,
+            title: true,
+            startPage: true,
+            endPage: true,
+            _count: { select: { sections: true } },
+          },
+        },
       },
     }),
     db.casebook.aggregate({ _sum: { byteSize: true } }),
@@ -67,24 +78,22 @@ export default async function CasebooksPage() {
       ) : (
         <ul className="divide-y divide-rule rounded border border-rule">
           {casebooks.map((cb) => (
-            <li key={cb.id} className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
-              <Link href={`/casebooks/${cb.id}/split`} className="text-ink hover:text-accent">
-                {cb.title}
-              </Link>
-              <span className="text-2xs text-faint">
-                {[cb.school, cb.year].filter(Boolean).join(" ")} · {cb.pageCount} pages ·{" "}
-                {formatBytes(cb.byteSize)} · {cb.sourceKind === "IMAGES" ? "images" : "PDF"}
-              </span>
-              <span className="flex-1" />
-              <span className="text-2xs text-faint">
-                {cb._count.cases} case{cb._count.cases === 1 ? "" : "s"} · {cb.uploader.name},{" "}
-                {ago(cb.createdAt)}
-              </span>
-              <Link href={`/casebooks/${cb.id}/split`} className="btn btn-quiet py-0.5">
-                Split into cases
-              </Link>
+            <CasebookRow
+              key={cb.id}
+              id={cb.id}
+              title={cb.title}
+              meta={[[cb.school, cb.year].filter(Boolean).join(" "), `${cb.pageCount} pages`, formatBytes(cb.byteSize), cb.sourceKind === "IMAGES" ? "images" : "PDF"].filter(Boolean).join(" · ")}
+              footer={`${cb._count.cases} case${cb._count.cases === 1 ? "" : "s"} · ${cb.uploader.name}, ${ago(cb.createdAt)}`}
+              cases={cb.cases.map((c) => ({
+                id: c.id,
+                title: c.title,
+                startPage: c.startPage,
+                endPage: c.endPage,
+                sectionCount: c._count.sections,
+              }))}
+            >
               {isAdmin(user) && <DeleteCasebook id={cb.id} title={cb.title} />}
-            </li>
+            </CasebookRow>
           ))}
         </ul>
       )}

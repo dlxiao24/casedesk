@@ -54,11 +54,13 @@ export default async function SectionsPage({ params }: { params: Promise<{ id: s
         endPage={kase.endPage ?? kase.startPage}
         suggestions={suggestions}
         existing={kase.sections.map((s) => ({
+          id: s.id,
           kind: s.kind,
           label: s.label,
           startPage: s.startPage,
           endPage: s.endPage,
           targetMins: s.targetMins,
+          pairedWithId: s.pairedWithId,
         }))}
       />
     </div>

@@ -1,0 +1,105 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import clsx from "clsx";
+
+export type CasebookCase = {
+  id: string;
+  title: string;
+  startPage: number | null;
+  endPage: number | null;
+  sectionCount: number;
+};
+
+/**
+ * A casebook row that opens to show the cases split out of it — the fastest way
+ * to answer "what did I already pull out of this one?" without a page load.
+ */
+export function CasebookRow({
+  id,
+  title,
+  meta,
+  footer,
+  cases,
+  children,
+}: {
+  id: string;
+  title: string;
+  meta: string;
+  footer: string;
+  cases: CasebookCase[];
+  children?: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <li className="px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label={open ? `Hide cases in ${title}` : `Show cases in ${title}`}
+          className="tabular w-4 shrink-0 text-faint hover:text-ink"
+        >
+          {open ? "▾" : "▸"}
+        </button>
+        <Link href={`/casebooks/${id}/split`} className="text-ink hover:text-accent">
+          {title}
+        </Link>
+        <span className="text-2xs text-faint">{meta}</span>
+        <span className="flex-1" />
+        <span className="text-2xs text-faint">{footer}</span>
+        <Link href={`/casebooks/${id}/split`} className="btn btn-quiet py-0.5">
+          Split into cases
+        </Link>
+        {children}
+      </div>
+
+      {open && (
+        <div className="ml-7 mt-2">
+          {cases.length === 0 ? (
+            <p className="text-2xs text-faint">
+              No cases pulled out of this casebook yet.{" "}
+              <Link href={`/casebooks/${id}/split`} className="text-accent">
+                Split it
+              </Link>
+              .
+            </p>
+          ) : (
+            <ul className="divide-y divide-rule/60 rounded border border-rule">
+              {cases.map((c) => (
+                <li key={c.id} className="flex items-center gap-2 px-2 py-1.5">
+                  <Link href={`/cases/${c.id}`} className="text-ink hover:text-accent">
+                    {c.title}
+                  </Link>
+                  <span className="tabular text-2xs text-faint">
+                    {c.startPage ? `pp. ${c.startPage}–${c.endPage}` : "no pages"}
+                  </span>
+                  <span
+                    className={clsx(
+                      "text-2xs",
+                      c.sectionCount > 0 ? "text-faint" : "text-warn/80",
+                    )}
+                  >
+                    {c.sectionCount > 0 ? `${c.sectionCount} sections` : "not sectioned"}
+                  </span>
+                  <span className="flex-1" />
+                  <Link href={`/cases/${c.id}/sections`} className="btn btn-quiet py-0 text-2xs">
+                    Sections
+                  </Link>
+                  <Link
+                    href={`/sessions/new?caseId=${c.id}`}
+                    className="btn btn-quiet py-0 text-2xs"
+                  >
+                    Administer
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </li>
+  );
+}

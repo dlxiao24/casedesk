@@ -6,15 +6,25 @@ import clsx from "clsx";
 import type { SectionKind } from "@prisma/client";
 import { saveSections } from "@/actions/casebooks";
 import { PageGrid, type PageMark } from "@/components/PageGrid";
+import { ZoomControl, useZoom } from "@/components/ZoomControl";
 import { SECTION_KINDS, sectionKindMeta } from "@/lib/constants";
 
 type Existing = {
+  id?: string;
   kind: SectionKind;
   label: string;
   startPage: number | null;
   endPage: number | null;
   targetMins: number | null;
+  pairedWithId?: string | null;
 };
+
+type Merged = { kind: SectionKind; startPage: number; endPage: number };
+
+/** A stable handle for a merged section, so labels and pairings survive edits. */
+function signature(s: { kind: SectionKind; startPage: number }) {
+  return `${s.kind}:${s.startPage}`;
+}
 
 /**
  * Assigning section kinds to pages (§4.3).
@@ -22,6 +32,10 @@ type Existing = {
  * Click a page, press a number. Contiguous pages of the same kind merge into
  * one section automatically, so the coach never has to think about section
  * boundaries — only about what each page *is*.
+ *
+ * Each section can also be pinned to another one ("shows with"), which is how
+ * an exhibit prompt ends up on screen beside its exhibit, or a sample framework
+ * beside the prompt it answers.
  */
 export function AssignSections({
   caseId,
@@ -40,6 +54,7 @@ export function AssignSections({
 }) {
   const router = useRouter();
   const pageCount = endPage - startPage + 1;
+  const zoom = useZoom("sections");
 
   // Seed from whatever is already saved, so re-sectioning is a nudge, not a redo.
   const [assigned, setAssigned] = useState<Record<number, SectionKind>>(() => {
@@ -50,14 +65,32 @@ export function AssignSections({
     }
     return out;
   });
+
   // Labels already written by hand outrank anything the heuristics propose.
   const [labels, setLabels] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       existing
         .filter((s) => s.startPage !== null)
-        .map((s) => [`${s.kind}:${s.startPage}`, s.label]),
+        .map((s) => [signature({ kind: s.kind, startPage: s.startPage! }), s.label]),
     ),
   );
+
+  // Pairing is keyed by signature rather than id, so it survives the coach
+  // reassigning pages and the sections being re-merged underneath it.
+  const [pairs, setPairs] = useState<Record<string, string>>(() => {
+    const sigById: Record<string, string> = {};
+    for (const e of existing) {
+      if (e.id && e.startPage) sigById[e.id] = signature({ kind: e.kind, startPage: e.startPage });
+    }
+    const out: Record<string, string> = {};
+    for (const e of existing) {
+      if (!e.startPage || !e.pairedWithId) continue;
+      const target = sigById[e.pairedWithId];
+      if (target) out[signature({ kind: e.kind, startPage: e.startPage })] = target;
+    }
+    return out;
+  });
+
   const [cursor, setCursor] = useState(startPage);
   const [saved, setSaved] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -73,7 +106,7 @@ export function AssignSections({
 
   /** Contiguous pages of the same kind become one section. */
   const merged = useMemo(() => {
-    const out: { kind: SectionKind; startPage: number; endPage: number }[] = [];
+    const out: Merged[] = [];
     for (let p = startPage; p <= endPage; p += 1) {
       const kind = assigned[p];
       if (!kind) continue;
@@ -97,55 +130,86 @@ export function AssignSections({
   }, [assigned, endPage, startPage, suggestions]);
 
   function acceptAllSuggestions() {
+    const nextLabels: Record<string, string> = {};
     setAssigned((a) => {
       const next = { ...a };
-      const nextLabels: Record<string, string> = {};
       for (const [page, s] of Object.entries(suggestions)) {
         const p = Number(page);
         if (!next[p]) next[p] = s.kind as SectionKind;
         if (s.label) nextLabels[`${s.kind}:${p}`] = s.label;
       }
-      setLabels((l) => ({ ...nextLabels, ...l }));
       return next;
     });
+    setLabels((l) => ({ ...nextLabels, ...l }));
   }
 
-  function labelFor(section: { kind: SectionKind; startPage: number }) {
+  function labelFor(section: Merged) {
     return (
-      labels[`${section.kind}:${section.startPage}`] ??
+      labels[signature(section)] ??
       suggestions[section.startPage]?.label ??
       sectionKindMeta(section.kind).label
     );
   }
 
+  function save() {
+    start(async () => {
+      await saveSections(
+        caseId,
+        merged.map((s) => {
+          const target = pairs[signature(s)];
+          const idx = target ? merged.findIndex((o) => signature(o) === target) : -1;
+          return {
+            kind: s.kind,
+            label: labelFor(s),
+            startPage: s.startPage,
+            endPage: s.endPage,
+            pairedWithIndex: idx >= 0 ? idx : null,
+          };
+        }),
+      );
+      const pinned = merged.filter((s) => pairs[signature(s)]).length;
+      setSaved(`Saved ${merged.length} sections${pinned ? `, ${pinned} pinned` : ""}.`);
+      router.refresh();
+    });
+  }
+
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
-      <PageGrid
-        fileUrl={fileUrl}
-        pageCount={pageCount}
-        firstPage={startPage}
-        marks={marks}
-        cursor={cursor}
-        selected={(p) => p === cursor}
-        onPick={(page) => setCursor(page)}
-        onKeyDown={(e) => {
-          const hotkey = SECTION_KINDS.find((k) => k.hotkey === e.key);
-          if (hotkey) {
-            e.preventDefault();
-            assign(cursor, hotkey.value);
-            setCursor((c) => Math.min(endPage, c + 1));
-          } else if (e.key === "ArrowRight") {
-            e.preventDefault();
-            setCursor((c) => Math.min(endPage, c + 1));
-          } else if (e.key === "ArrowLeft") {
-            e.preventDefault();
-            setCursor((c) => Math.max(startPage, c - 1));
-          } else if (e.key === "Backspace" || e.key === "0") {
-            e.preventDefault();
-            assign(cursor, null);
-          }
-        }}
-      />
+    <div className="grid gap-4 lg:grid-cols-[1fr_22rem]">
+      <div>
+        <div className="mb-2 flex items-center gap-2">
+          <ZoomControl width={zoom.width} onChange={zoom.choose} />
+          <span className="text-2xs text-faint">
+            Thumbnail size — go large to actually read a slide
+          </span>
+        </div>
+        <PageGrid
+          thumbWidth={zoom.width}
+          fileUrl={fileUrl}
+          pageCount={pageCount}
+          firstPage={startPage}
+          marks={marks}
+          cursor={cursor}
+          selected={(p) => p === cursor}
+          onPick={(page) => setCursor(page)}
+          onKeyDown={(e) => {
+            const hotkey = SECTION_KINDS.find((k) => k.hotkey === e.key);
+            if (hotkey) {
+              e.preventDefault();
+              assign(cursor, hotkey.value);
+              setCursor((c) => Math.min(endPage, c + 1));
+            } else if (e.key === "ArrowRight") {
+              e.preventDefault();
+              setCursor((c) => Math.min(endPage, c + 1));
+            } else if (e.key === "ArrowLeft") {
+              e.preventDefault();
+              setCursor((c) => Math.max(startPage, c - 1));
+            } else if (e.key === "Backspace" || e.key === "0") {
+              e.preventDefault();
+              assign(cursor, null);
+            }
+          }}
+        />
+      </div>
 
       <div className="space-y-4">
         <div className="rounded border border-rule bg-panel p-3">
@@ -189,26 +253,63 @@ export function AssignSections({
             <h2 className="text-sm text-ink">Sections</h2>
             <span className="text-2xs text-faint">{merged.length}</span>
           </div>
+          <p className="mt-0.5 text-2xs text-faint">
+            Name each one, and pin the ones that belong together — an exhibit prompt to its
+            exhibit, a sample framework to its prompt.
+          </p>
+
           {merged.length === 0 ? (
-            <p className="mt-1 text-2xs text-faint">Nothing assigned yet.</p>
+            <p className="mt-2 text-2xs text-faint">Nothing assigned yet.</p>
           ) : (
-            <ul className="mt-2 space-y-1.5">
-              {merged.map((s) => (
-                <li key={`${s.kind}-${s.startPage}`} className="flex items-center gap-1.5">
-                  <span className={clsx("h-5 w-1 rounded-sm", sectionKindMeta(s.kind).spine)} />
-                  <input
-                    className="field py-0.5 text-2xs"
-                    value={labelFor(s)}
-                    onChange={(e) =>
-                      setLabels((l) => ({ ...l, [`${s.kind}:${s.startPage}`]: e.target.value }))
-                    }
-                  />
-                  <span className="tabular shrink-0 text-2xs text-faint">
-                    {s.startPage}
-                    {s.endPage !== s.startPage ? `–${s.endPage}` : ""}
-                  </span>
-                </li>
-              ))}
+            <ul className="mt-2 space-y-2">
+              {merged.map((s) => {
+                const sig = signature(s);
+                const partner = pairs[sig];
+                return (
+                  <li key={sig} className="space-y-1 border-b border-rule/50 pb-2 last:border-b-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className={clsx("h-5 w-1 rounded-sm", sectionKindMeta(s.kind).spine)} />
+                      <input
+                        className="field py-0.5 text-2xs"
+                        value={labelFor(s)}
+                        aria-label={`Name for pages ${s.startPage}`}
+                        onChange={(e) => setLabels((l) => ({ ...l, [sig]: e.target.value }))}
+                      />
+                      <span className="tabular shrink-0 text-2xs text-faint">
+                        {s.startPage}
+                        {s.endPage !== s.startPage ? `–${s.endPage}` : ""}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 pl-2.5">
+                      <span className="shrink-0 text-2xs text-faint">shows with</span>
+                      <select
+                        className={clsx(
+                          "field w-full py-0.5 text-2xs",
+                          partner ? "text-ink" : "text-faint",
+                        )}
+                        value={partner ?? ""}
+                        onChange={(e) =>
+                          setPairs((prev) => {
+                            const next = { ...prev };
+                            if (e.target.value) next[sig] = e.target.value;
+                            else delete next[sig];
+                            return next;
+                          })
+                        }
+                      >
+                        <option value="">nothing — its own step</option>
+                        {merged
+                          .filter((o) => signature(o) !== sig)
+                          .map((o) => (
+                            <option key={signature(o)} value={signature(o)} className="text-ink">
+                              {labelFor(o)}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
 
@@ -216,21 +317,7 @@ export function AssignSections({
           <button
             className="btn btn-primary mt-3 w-full justify-center"
             disabled={pending || merged.length === 0}
-            onClick={() =>
-              start(async () => {
-                await saveSections(
-                  caseId,
-                  merged.map((s) => ({
-                    kind: s.kind,
-                    label: labelFor(s),
-                    startPage: s.startPage,
-                    endPage: s.endPage,
-                  })),
-                );
-                setSaved(`Saved ${merged.length} sections.`);
-                router.refresh();
-              })
-            }
+            onClick={save}
           >
             {pending ? "Saving…" : "Save sections"}
           </button>

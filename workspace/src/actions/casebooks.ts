@@ -94,6 +94,12 @@ export async function saveSections(
     startPage: number;
     endPage: number;
     targetMins?: number | null;
+    /**
+     * Index into this same array of the section this one rides along with — an
+     * exhibit prompt pinned to its exhibit, a sample framework pinned to its
+     * prompt. Positional rather than by id because these rows may not exist yet.
+     */
+    pairedWithIndex?: number | null;
   }[],
 ) {
   const user = await requireUser();
@@ -130,9 +136,26 @@ export async function saveSections(
     return db.section.create({ data: { caseId, ...data } });
   });
 
-  await db.$transaction([
+  const saved = await db.$transaction([
     ...writes,
     db.section.deleteMany({ where: { id: { in: [...unmatched] } } }),
+  ]);
+
+  // Pairing is resolved in a second pass, once every row has an id. Cleared
+  // first so a pairing the coach removed does not survive the save.
+  const ids = sections.map((_, i) => (saved[i] as { id: string }).id);
+  const pairings = sections
+    .map((s, i) => ({ id: ids[i], target: s.pairedWithIndex }))
+    .filter((p) => p.target !== null && p.target !== undefined && ids[p.target] !== p.id);
+
+  await db.$transaction([
+    db.section.updateMany({ where: { caseId }, data: { pairedWithId: null } }),
+    ...pairings.map((p) =>
+      db.section.update({
+        where: { id: p.id },
+        data: { pairedWithId: ids[p.target as number] },
+      }),
+    ),
   ]);
 
   revalidatePath(`/cases/${caseId}`);

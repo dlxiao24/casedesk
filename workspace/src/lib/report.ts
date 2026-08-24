@@ -74,30 +74,26 @@ export function reportToMarkdown(m: ReportModel): string {
     lines.push("");
   }
 
-  const withFeedback = m.sections.filter((s) => s.feedback.trim());
-  if (withFeedback.length) {
-    lines.push("## Section by section");
-    lines.push("");
-    lines.push("| Section | Time | Feedback |");
-    lines.push("| --- | --- | --- |");
-    for (const s of withFeedback) {
-      lines.push(`| ${s.label} | ${clock(s.secondsSpent)} | ${escapeCell(s.feedback)} |`);
-    }
-    lines.push("");
-  }
-
   if (m.includeRecord) {
-    const record = m.sections.filter((s) => s.whatWasSaid.trim());
-    if (record.length) {
+    const detail = m.sections.filter(
+      (s) => s.feedback.trim() || s.whatWasSaid.trim() || s.secondsSpent > 0,
+    );
+    if (detail.length) {
       lines.push("---");
       lines.push("");
-      lines.push("## Session record");
+      lines.push("## Section by section");
       lines.push("");
-      for (const s of record) {
-        lines.push(`### ${s.label}`);
+      for (const s of detail) {
+        lines.push(`### ${s.label} — ${clock(s.secondsSpent)}`);
         lines.push("");
-        lines.push(s.whatWasSaid.trim());
-        lines.push("");
+        if (s.feedback.trim()) {
+          lines.push(`**What to change:** ${s.feedback.trim()}`);
+          lines.push("");
+        }
+        if (s.whatWasSaid.trim()) {
+          lines.push(`**What was said:** ${s.whatWasSaid.trim()}`);
+          lines.push("");
+        }
       }
     }
   }
@@ -107,8 +103,5 @@ export function reportToMarkdown(m: ReportModel): string {
   return lines.join("\n");
 }
 
-function escapeCell(text: string): string {
-  return text.replace(/\|/g, "\|").replace(/\n+/g, " ");
-}
 
 export { dimensionLabel };

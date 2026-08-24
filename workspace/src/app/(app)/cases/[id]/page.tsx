@@ -10,6 +10,7 @@ import { PersonalNotes } from "./PersonalNotes";
 import { ReadinessPicker } from "./ReadinessPicker";
 import { SectionList } from "./SectionList";
 import { SharedNotes } from "./SharedNotes";
+import { CaseFields } from "./CaseFields";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,11 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
     },
   });
   if (!kase) notFound();
+
+  const casebooks = await db.casebook.findMany({
+    select: { id: true, title: true, pageCount: true },
+    orderBy: { createdAt: "desc" },
+  });
 
   // Readiness auto-advance: opening the detail view means it has been read (§5).
   const mine = await db.coachCase.upsert({
@@ -72,7 +78,22 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
             · added by {kase.owner.name} {ago(kase.createdAt)}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <CaseFields
+            caseId={kase.id}
+            canEdit={isOwner || user.role === "ADMIN"}
+            casebooks={casebooks}
+            initial={{
+              title: kase.title,
+              caseType: kase.caseType,
+              industry: kase.industry,
+              format: kase.format,
+              targetRound: kase.targetRound,
+              casebookId: kase.casebookId,
+              startPage: kase.startPage,
+              endPage: kase.endPage,
+            }}
+          />
           <ReadinessPicker caseId={kase.id} state={state} />
           <Link href={`/sessions/new?caseId=${kase.id}`} className="btn btn-primary">
             Administer case

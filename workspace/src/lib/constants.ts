@@ -66,6 +66,9 @@ export const SECTION_KINDS: {
 }[] = [
   { value: "PROMPT", label: "Prompt", hotkey: "1", spine: "bg-sky-500", chip: "text-sky-300 border-sky-900" },
   { value: "EXHIBIT", label: "Exhibit", hotkey: "2", spine: "bg-violet-500", chip: "text-violet-300 border-violet-900" },
+  // Appended rather than slotted in beside Exhibit: the 1-7 keys are muscle
+  // memory by the time anyone wants this one.
+  { value: "EXHIBIT_PROMPT", label: "Exhibit prompt", hotkey: "8", spine: "bg-violet-300", chip: "text-violet-200 border-violet-900" },
   { value: "MATH", label: "Math", hotkey: "3", spine: "bg-amber-500", chip: "text-amber-300 border-amber-900" },
   { value: "BRAINSTORM", label: "Brainstorm", hotkey: "4", spine: "bg-teal-500", chip: "text-teal-300 border-teal-900" },
   { value: "SYNTHESIS", label: "Synthesis", hotkey: "5", spine: "bg-emerald-500", chip: "text-emerald-300 border-emerald-900" },
@@ -134,4 +137,22 @@ export function bandForScore(value: number): Band {
 
 export function dimensionLabel(d: Dimension) {
   return DIMENSIONS.find((x) => x.value === d)?.label ?? d;
+}
+
+/**
+ * Kinds that make sense as a companion pinned to another section (§ runner):
+ * the prompt that belongs with an exhibit, the sample framework that belongs
+ * with a prompt, the interviewer guidance for a given step.
+ */
+export const PAIRABLE_KINDS: SectionKind[] = [
+  "EXHIBIT_PROMPT",
+  "PROMPT",
+  "STRUCTURE",
+  "SOLUTION",
+  "INTERVIEWER_GUIDE",
+  "MATH",
+];
+
+export function isPairableKind(kind: SectionKind) {
+  return PAIRABLE_KINDS.includes(kind);
 }

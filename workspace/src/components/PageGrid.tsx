@@ -7,6 +7,13 @@ import { configureWorker } from "@/lib/pdf";
 
 configureWorker(pdfjs);
 
+export const ZOOM_LEVELS = [
+  { label: "S", width: 120, title: "Small — most pages at once" },
+  { label: "M", width: 190, title: "Medium" },
+  { label: "L", width: 300, title: "Large — readable slides" },
+  { label: "XL", width: 460, title: "Extra large — one or two per row" },
+] as const;
+
 export type PageMark = {
   /** Tailwind background class for the colored spine. */
   spine?: string;
@@ -31,7 +38,7 @@ export function PageGrid({
   cursor,
   onPick,
   onKeyDown,
-  thumbWidth = 150,
+  thumbWidth = 190,
 }: {
   fileUrl: string | null;
   pageCount: number;

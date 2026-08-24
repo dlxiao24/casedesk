@@ -30,6 +30,9 @@ export type RunnerSection = {
   secondsSpent: number;
 };
 
+/** A section in the main sequence, plus any companions pinned to it. */
+export type RunnerStep = RunnerSection & { companions: RunnerSection[] };
+
 type NoteState = Record<string, { whatWasSaid: string; feedback: string; secondsSpent: number }>;
 
 /**
@@ -45,6 +48,7 @@ export function Runner({
   startedAt,
   resumedSeconds,
   fileUrl,
+  casePages,
   sections: initialSections,
 }: {
   sessionId: string;
@@ -54,16 +58,20 @@ export function Runner({
   startedAt: string;
   resumedSeconds: number;
   fileUrl: string | null;
-  sections: RunnerSection[];
+  casePages: { start: number; end: number } | null;
+  sections: RunnerStep[];
 }) {
   const [sections, setSections] = useState(initialSections);
   const [index, setIndex] = useState(0);
   const [notes, setNotes] = useState<NoteState>(() =>
     Object.fromEntries(
-      initialSections.map((s) => [
-        s.id,
-        { whatWasSaid: s.whatWasSaid, feedback: s.feedback, secondsSpent: s.secondsSpent },
-      ]),
+      // Companions keep their own notes even though they share a slot.
+      initialSections
+        .flatMap((s) => [s, ...s.companions])
+        .map((s) => [
+          s.id,
+          { whatWasSaid: s.whatWasSaid, feedback: s.feedback, secondsSpent: s.secondsSpent },
+        ]),
     ),
   );
   const notesRef = useRef<NoteState>({});
@@ -196,6 +204,14 @@ export function Runner({
       } else if (mod && e.key.toLowerCase() === "s") {
         e.preventDefault();
         finish();
+      } else if (!typing && e.key === "ArrowRight") {
+        // Bare arrows move between sections too, but only when the coach is not
+        // in a note field — there they still move the caret.
+        e.preventDefault();
+        go(indexRef.current + 1);
+      } else if (!typing && e.key === "ArrowLeft") {
+        e.preventDefault();
+        go(indexRef.current - 1);
       } else if (!typing && e.key.toLowerCase() === "r") {
         e.preventDefault();
         const section = sections[indexRef.current];
@@ -234,10 +250,38 @@ export function Runner({
   const hidden = active ? isHiddenKind(active.kind) || active.isSolution : false;
   const isRevealed = active ? Boolean(revealed[active.id]) : false;
 
-  const pages = useMemo(() => {
-    if (!active?.startPage) return [];
-    const end = active.endPage ?? active.startPage;
-    return Array.from({ length: end - active.startPage + 1 }, (_, i) => active.startPage! + i);
+  // Every page the case spans, for the mini-navigator filmstrip.
+  const deckPages = useMemo(() => {
+    if (!casePages) return [];
+    return Array.from(
+      { length: casePages.end - casePages.start + 1 },
+      (_, i) => casePages.start + i,
+    );
+  }, [casePages]);
+
+  /** Which step owns a given page, so the filmstrip can jump to it. */
+  const stepForPage = useMemo(() => {
+    const map = new Map<number, number>();
+    sections.forEach((s, i) => {
+      for (const part of [s, ...s.companions]) {
+        if (!part.startPage) continue;
+        for (let p = part.startPage; p <= (part.endPage ?? part.startPage); p += 1) {
+          if (!map.has(p)) map.set(p, i);
+        }
+      }
+    });
+    return map;
+  }, [sections]);
+
+  /** Pages currently on screen, highlighted in the filmstrip. */
+  const activePages = useMemo(() => {
+    const set = new Set<number>();
+    if (!active) return set;
+    for (const part of [active, ...active.companions]) {
+      if (!part.startPage) continue;
+      for (let p = part.startPage; p <= (part.endPage ?? part.startPage); p += 1) set.add(p);
+    }
+    return set;
   }, [active]);
 
   if (!active) {
@@ -270,31 +314,40 @@ export function Runner({
       <div className="flex min-h-0 flex-1">
         {/* Left: the case material. */}
         <div className="min-w-0 overflow-auto border-r border-rule" style={{ width: `${splitPct}%` }}>
-          {hidden && !isRevealed ? (
-            <div className="flex h-full flex-col items-center justify-center gap-3 p-8">
-              <p className="text-sm text-muted">
-                {sectionKindMeta(active.kind).label} hidden.
-              </p>
-              <button
-                className="btn"
-                onClick={() => setRevealed((r) => ({ ...r, [active.id]: true }))}
-              >
-                Reveal (R)
-              </button>
+          {/* The active section, plus anything pinned to it — an exhibit and its
+              prompt, or a prompt and its sample framework — so the coach reads
+              them together instead of paging between them. */}
+          <SectionMaterial
+            section={active}
+            fileUrl={fileUrl}
+            revealed={isRevealed}
+            onReveal={() => setRevealed((r) => ({ ...r, [active.id]: true }))}
+          />
+          {active.companions.map((c) => (
+            <div key={c.id} className="border-t-2 border-rule">
+              <div className="flex items-center gap-2 bg-panel px-3 py-1">
+                <span className={clsx("h-3 w-1 rounded-sm", sectionKindMeta(c.kind).spine)} />
+                <span className="text-2xs text-muted">{c.label}</span>
+                <span className={clsx("chip ml-auto", sectionKindMeta(c.kind).chip)}>
+                  {sectionKindMeta(c.kind).label}
+                </span>
+                {isHiddenKind(c.kind) && (
+                  <button
+                    className="btn btn-quiet py-0 text-2xs"
+                    onClick={() => setRevealed((r) => ({ ...r, [c.id]: !r[c.id] }))}
+                  >
+                    {revealed[c.id] ? "Hide" : "Reveal"}
+                  </button>
+                )}
+              </div>
+              <SectionMaterial
+                section={c}
+                fileUrl={fileUrl}
+                revealed={Boolean(revealed[c.id])}
+                onReveal={() => setRevealed((r) => ({ ...r, [c.id]: true }))}
+              />
             </div>
-          ) : active.bodyText ? (
-            <pre className="prose-notes whitespace-pre-wrap p-4 text-sm leading-relaxed text-ink">
-              {active.bodyText}
-            </pre>
-          ) : fileUrl && pages.length > 0 ? (
-            <PdfPane fileUrl={fileUrl} pages={pages} />
-          ) : (
-            <div className="p-8 text-sm text-faint">
-              {pages.length > 0
-                ? "The casebook file is not available in this environment."
-                : "No pages or text for this section."}
-            </div>
-          )}
+          ))}
         </div>
 
         <Divider onDrag={setSplitPct} />
@@ -340,6 +393,16 @@ export function Runner({
         </div>
       </div>
 
+      <MiniNavigator
+        fileUrl={fileUrl}
+        pages={deckPages}
+        activePages={activePages}
+        onPick={(page) => {
+          const step = stepForPage.get(page);
+          if (step !== undefined) go(step);
+        }}
+      />
+
       <footer className="flex h-9 shrink-0 items-center gap-3 border-t border-rule px-3 text-2xs">
         <span className="tabular text-ink">{clock(total)} total</span>
         <span className={clsx("tabular", overTarget ? "text-warn" : "text-muted")}>
@@ -379,7 +442,7 @@ export function Runner({
           caseId={caseId}
           onCancel={() => setAdding(false)}
           onAdded={(section) => {
-            setSections((s) => [...s, section]);
+            setSections((s) => [...s, { ...section, companions: [] }]);
             setNotes((n) => ({
               ...n,
               [section.id]: { whatWasSaid: "", feedback: "", secondsSpent: 0 },
@@ -546,6 +609,96 @@ function AddSectionInline({
           Cancel
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * One section's material: typed text if it has any, otherwise its casebook
+ * pages. Hidden kinds stay blurred until the coach asks for them (§6.2).
+ */
+function SectionMaterial({
+  section,
+  fileUrl,
+  revealed,
+  onReveal,
+}: {
+  section: RunnerSection;
+  fileUrl: string | null;
+  revealed: boolean;
+  onReveal: () => void;
+}) {
+  const pages = useMemo(() => {
+    if (!section.startPage) return [];
+    const end = section.endPage ?? section.startPage;
+    return Array.from({ length: end - section.startPage + 1 }, (_, i) => section.startPage! + i);
+  }, [section.startPage, section.endPage]);
+
+  if ((isHiddenKind(section.kind) || section.isSolution) && !revealed) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 p-8">
+        <p className="text-sm text-muted">{sectionKindMeta(section.kind).label} hidden.</p>
+        <button className="btn" onClick={onReveal}>
+          Reveal (R)
+        </button>
+      </div>
+    );
+  }
+
+  if (section.bodyText) {
+    return (
+      <pre className="prose-notes whitespace-pre-wrap p-4 text-sm leading-relaxed text-ink">
+        {section.bodyText}
+      </pre>
+    );
+  }
+
+  if (fileUrl && pages.length > 0) return <PdfPane fileUrl={fileUrl} pages={pages} />;
+
+  return (
+    <div className="p-8 text-sm text-faint">
+      {pages.length > 0
+        ? "The casebook file is not available in this environment."
+        : "No pages or text for this section."}
+    </div>
+  );
+}
+
+/**
+ * A filmstrip of the whole deck. The keyboard is the fast path, but sometimes a
+ * coach just wants to click to the slide they remember.
+ */
+function MiniNavigator({
+  fileUrl,
+  pages,
+  activePages,
+  onPick,
+}: {
+  fileUrl: string | null;
+  pages: number[];
+  activePages: Set<number>;
+  onPick: (page: number) => void;
+}) {
+  if (pages.length === 0) return null;
+
+  return (
+    <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-t border-rule bg-panel/60 px-2 py-1.5">
+      {pages.map((p) => (
+        <button
+          key={p}
+          onClick={() => onPick(p)}
+          title={`Page ${p}`}
+          className={clsx(
+            "tabular shrink-0 rounded border px-1.5 py-0.5 text-2xs transition-colors",
+            activePages.has(p)
+              ? "border-accent bg-accent/20 text-ink"
+              : "border-rule text-faint hover:border-faint hover:text-muted",
+          )}
+        >
+          {p}
+        </button>
+      ))}
+      {!fileUrl && <span className="ml-2 text-2xs text-faint">no file loaded</span>}
     </div>
   );
 }

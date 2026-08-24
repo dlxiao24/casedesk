@@ -295,12 +295,15 @@ function TakeawayColumn({
         {[1, 2, 3].map((rank) => (
           <li key={rank} className="flex gap-2">
             <span className="tabular pt-2 text-2xs text-faint">{rank}</span>
+            {/* Controlled, with a key that does NOT include the text. Keying on
+                the value remounts the textarea on every keystroke, which drops
+                focus after a single letter. */}
             <textarea
+              key={`${kind}-${rank}`}
               rows={2}
               disabled={locked}
               className="field prose-notes leading-relaxed"
-              defaultValue={textFor(kind, rank)}
-              key={`${kind}-${rank}-${textFor(kind, rank)}`}
+              value={textFor(kind, rank)}
               onChange={(e) => onChange(kind, rank, e.target.value)}
             />
           </li>

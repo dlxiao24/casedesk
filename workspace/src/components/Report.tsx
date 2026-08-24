@@ -8,8 +8,10 @@ import type { ReportModel } from "@/lib/report";
  * pages before the appendix.
  */
 export function Report({ model }: { model: ReportModel }) {
-  const withFeedback = model.sections.filter((s) => s.feedback.trim());
-  const record = model.sections.filter((s) => s.whatWasSaid.trim());
+  // A section earns a place if anything was captured against it at all.
+  const detail = model.sections.filter(
+    (s) => s.feedback.trim() || s.whatWasSaid.trim() || s.secondsSpent > 0,
+  );
 
   return (
     <article className="report mx-auto max-w-[46rem] px-10 py-12">
@@ -77,51 +79,45 @@ export function Report({ model }: { model: ReportModel }) {
         </section>
       )}
 
-      {withFeedback.length > 0 && (
-        <section className="mt-8">
-          <h2 className="text-xs uppercase tracking-widest text-neutral-500">Section by section</h2>
-          <table className="mt-3 w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-neutral-300 text-left text-xs uppercase tracking-wider text-neutral-500">
-                <th className="w-48 py-1.5 pr-3 font-normal">Section</th>
-                <th className="w-16 py-1.5 pr-3 font-normal">Time</th>
-                <th className="py-1.5 font-normal">Feedback</th>
-              </tr>
-            </thead>
-            <tbody>
-              {withFeedback.map((s, i) => (
-                <tr key={i} className="border-b border-neutral-200 align-top">
-                  <td className="py-2 pr-3">{s.label}</td>
-                  <td className="tabular py-2 pr-3 text-neutral-500">{clock(s.secondsSpent)}</td>
-                  <td className="whitespace-pre-wrap py-2 leading-relaxed">{s.feedback.trim()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-
-      {/* The appendix goes last and under its own heading, so the judgment is
-          read first and the transcript second (§8). */}
-      {model.includeRecord && record.length > 0 && (
+      {/* Everything captured live, section by section: how long it took, what
+          the coach said to change, and what the candidate actually said. It
+          goes last, under its own heading and after a page break, so the
+          judgment is read first and the record second (§8). */}
+      {model.includeRecord && detail.length > 0 && (
         <section className="page-break-before mt-12 border-t border-neutral-300 pt-8">
-          <h2 className="text-lg">Session record</h2>
+          <h2 className="text-lg">Section by section</h2>
           <p className="mt-1 text-sm text-neutral-500">
-            Notes taken during the case, section by section. Supporting material for the takeaways
-            above.
+            Taken live during the case. Supporting material for the takeaways above.
           </p>
-          <div className="mt-5 space-y-5">
-            {record.map((s, i) => (
-              <div key={i}>
-                <h3 className="text-sm font-semibold">
+          <div className="mt-5 space-y-6">
+            {detail.map((s, i) => (
+              <div key={i} className="break-inside-avoid">
+                <h3 className="flex items-baseline gap-2 border-b border-neutral-200 pb-1 text-sm font-semibold">
                   {s.label}
-                  <span className="tabular ml-2 font-normal text-neutral-500">
+                  <span className="tabular ml-auto font-normal text-neutral-500">
                     {clock(s.secondsSpent)}
                   </span>
                 </h3>
-                <p className="mt-1 whitespace-pre-wrap text-[0.9rem] leading-relaxed text-neutral-700">
-                  {s.whatWasSaid.trim()}
-                </p>
+                {s.feedback.trim() && (
+                  <div className="mt-2">
+                    <div className="text-xs uppercase tracking-wider text-neutral-500">
+                      What to change
+                    </div>
+                    <p className="mt-0.5 whitespace-pre-wrap text-[0.9rem] leading-relaxed">
+                      {s.feedback.trim()}
+                    </p>
+                  </div>
+                )}
+                {s.whatWasSaid.trim() && (
+                  <div className="mt-2">
+                    <div className="text-xs uppercase tracking-wider text-neutral-500">
+                      What was said
+                    </div>
+                    <p className="mt-0.5 whitespace-pre-wrap text-[0.9rem] leading-relaxed text-neutral-700">
+                      {s.whatWasSaid.trim()}
+                    </p>
+                  </div>
+                )}
               </div>
             ))}
           </div>

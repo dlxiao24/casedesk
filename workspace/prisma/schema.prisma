@@ -150,7 +150,16 @@ model Section {
   isSolution Boolean     @default(false)
   targetMins Int?
 
+  /// Companion section shown alongside this one in the runner: the prompt that
+  /// belongs to an exhibit, or the sample framework that belongs to a prompt.
+  /// A paired section keeps its own notes but never gets its own slot in the
+  /// section sequence — it surfaces with its partner instead.
+  pairedWithId String?
+  pairedWith   Section?  @relation("SectionPairing", fields: [pairedWithId], references: [id], onDelete: SetNull)
+  pairedBy     Section[] @relation("SectionPairing")
+
   @@index([caseId, order])
+  @@index([pairedWithId])
 }
 
 enum SectionKind {
@@ -158,6 +167,7 @@ enum SectionKind {
   CLARIFYING
   STRUCTURE
   EXHIBIT
+  EXHIBIT_PROMPT
   MATH
   BRAINSTORM
   SYNTHESIS
@@ -232,7 +242,8 @@ model Session {
   sectionNotes SectionNote[]
   takeaways    Takeaway[]
   overallNote  String?
-  /// Report toggle: include the "Session record" appendix (§8). Default on.
+  /// Report toggle: include the per-section detail block — what was said, the
+  /// feedback given, and time spent on each section (§8). Default on.
   includeRecord Boolean  @default(true)
   /// Suppress the casebook source line in the report.
   hideSource    Boolean  @default(false)

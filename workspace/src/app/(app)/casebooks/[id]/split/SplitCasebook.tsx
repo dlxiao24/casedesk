@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { createCaseFromRange } from "@/actions/casebooks";
 import { PageGrid, type PageMark } from "@/components/PageGrid";
+import { ZoomControl, useZoom } from "@/components/ZoomControl";
 
 type ExistingCase = { id: string; title: string; startPage: number; endPage: number };
 
@@ -35,6 +36,7 @@ export function SplitCasebook({
   const [cursor, setCursor] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const zoom = useZoom("split");
 
   const claimed = useMemo(() => {
     const map: Record<number, ExistingCase> = {};
@@ -91,7 +93,13 @@ export function SplitCasebook({
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
+      <div>
+        <div className="mb-2 flex items-center gap-2">
+          <ZoomControl width={zoom.width} onChange={zoom.choose} />
+          <span className="text-2xs text-faint">Thumbnail size</span>
+        </div>
       <PageGrid
+        thumbWidth={zoom.width}
         fileUrl={fileUrl}
         pageCount={pageCount}
         marks={marks}
@@ -111,6 +119,7 @@ export function SplitCasebook({
           }
         }}
       />
+      </div>
 
       <div className="space-y-4">
         <div className="space-y-2 rounded border border-rule bg-panel p-3">

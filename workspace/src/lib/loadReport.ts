@@ -37,11 +37,7 @@ export async function loadReportModel(
     (s) => s.kind !== "SOLUTION" && s.kind !== "INTERVIEWER_GUIDE" && !s.isSolution,
   );
 
-  const source = session.case.casebook
-    ? [session.case.casebook.school, session.case.casebook.title, session.case.casebook.year]
-        .filter(Boolean)
-        .join(" ")
-    : null;
+  const source = session.case.casebook ? casebookLabel(session.case.casebook) : null;
 
   const order = ["STRUCTURE", "QUANTITATIVE", "JUDGMENT", "SYNTHESIS", "PRESENCE"];
 
@@ -86,4 +82,23 @@ function stripStars(text: string): string {
     .split("\n")
     .map((line) => line.replace(/^(\s*(?:\[\d{1,2}:\d{2}\]\s*)?)\*+\s*/, "$1"))
     .join("\n");
+}
+
+/**
+ * "UVA Darden Darden 2020 2020" is what naive concatenation produces when a
+ * coach types the school into the title too. Drop any part the title already
+ * says — this line goes on the candidate's document.
+ */
+function casebookLabel(cb: { school: string | null; title: string; year: number | null }): string {
+  const title = cb.title.trim();
+  const lower = title.toLowerCase();
+  const parts: string[] = [];
+
+  if (cb.school?.trim() && !lower.includes(cb.school.trim().toLowerCase())) {
+    parts.push(cb.school.trim());
+  }
+  parts.push(title);
+  if (cb.year && !title.includes(String(cb.year))) parts.push(String(cb.year));
+
+  return parts.join(" ");
 }
