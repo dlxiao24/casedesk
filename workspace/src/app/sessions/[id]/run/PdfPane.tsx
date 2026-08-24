@@ -47,7 +47,7 @@ export function PdfPane({
       className={
         tone === "light"
           ? "overflow-x-auto bg-white p-2"
-          : "h-full overflow-auto bg-[#1a1d22] p-3"
+          : "h-full overflow-auto bg-[#1a1d22] px-3 py-1.5"
       }
     >
       {error ? (
@@ -60,7 +60,7 @@ export function PdfPane({
           externalLinkTarget="_blank"
         >
           {pages.map((p) => (
-            <div key={p} className="mb-3 last:mb-0">
+            <div key={p} className="mb-2 last:mb-0">
               <Page
                 pageNumber={p}
                 width={width}

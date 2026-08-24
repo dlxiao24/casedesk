@@ -362,8 +362,8 @@ export function Runner({
             onReveal={() => setRevealed((r) => ({ ...r, [active.id]: true }))}
           />
           {active.companions.map((c) => (
-            <div key={c.id} className="border-t-2 border-rule">
-              <div className="flex items-center gap-2 bg-panel px-3 py-1">
+            <div key={c.id} className="border-t border-rule">
+              <div className="flex items-center gap-2 bg-panel px-3 py-0.5">
                 <span className={clsx("h-3 w-1 rounded-sm", sectionKindMeta(c.kind).spine)} />
                 <span className="text-2xs text-muted">{c.label}</span>
                 <span className={clsx("chip ml-auto", sectionKindMeta(c.kind).chip)}>
