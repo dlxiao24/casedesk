@@ -65,18 +65,36 @@ export async function updateCase(caseId: string, form: FormData) {
     return { error: "Only the case owner can edit these fields." };
   }
 
-  const parsed = caseInput.partial().safeParse({
-    title: form.get("title") ?? existing.title,
-    casebookId: blank(form.get("casebookId")),
-    startPage: blank(form.get("startPage")),
-    endPage: blank(form.get("endPage")),
-    caseType: blank(form.get("caseType")) ?? existing.caseType,
-    industry: blank(form.get("industry")),
-    firm: blank(form.get("firm")),
-    targetRound: blank(form.get("targetRound")),
-    format: blank(form.get("format")) ?? existing.format,
-    notes: form.get("notes") === null ? existing.notes : String(form.get("notes")),
-  });
+  /**
+   * Only touch what was actually submitted.
+   *
+   * This used to read every field unconditionally, so a form carrying just the
+   * prep notes — the Edit button on the case page does exactly that — sent null
+   * for casebookId, the page range, industry, firm and round, wiping them and
+   * dropping the case out of its casebook. An absent field now means "leave it
+   * alone"; a present but empty one still means "clear it".
+   */
+  const submitted: Record<string, unknown> = {};
+  for (const key of [
+    "title",
+    "casebookId",
+    "startPage",
+    "endPage",
+    "caseType",
+    "industry",
+    "firm",
+    "targetRound",
+    "format",
+  ]) {
+    if (form.has(key)) submitted[key] = blank(form.get(key));
+  }
+  // A required field cannot be cleared to null; fall back to what it already is.
+  if (form.has("title")) submitted.title = blank(form.get("title")) ?? existing.title;
+  if (form.has("caseType")) submitted.caseType = blank(form.get("caseType")) ?? existing.caseType;
+  if (form.has("format")) submitted.format = blank(form.get("format")) ?? existing.format;
+  if (form.has("notes")) submitted.notes = String(form.get("notes"));
+
+  const parsed = caseInput.partial().safeParse(submitted);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Could not save." };
 
   await db.case.update({ where: { id: caseId }, data: parsed.data });

@@ -103,6 +103,30 @@ export function AssignSections({
   /** Explicit top-level ordering, when the coach has dragged something. */
   const [manualOrder, setManualOrder] = useState<string[] | null>(null);
 
+  /**
+   * Explicit ordering of the substeps under a given step. Without this,
+   * substeps sat in page order, so an exhibit late in the deck could never be
+   * placed above one that came earlier — which is exactly what you want when
+   * the casebook prints them out of the order you deliver them in.
+   */
+  const [childOrder, setChildOrder] = useState<Record<string, string[]>>(() => {
+    // Saved sections arrive in the order they were written, so a set the coach
+    // already arranged comes back arranged rather than snapping to page order.
+    const seeded: Record<string, string[]> = {};
+    const sigById: Record<string, string> = {};
+    for (const e of existing) {
+      if (e.id && e.startPage) sigById[e.id] = signature({ kind: e.kind, startPage: e.startPage });
+    }
+    for (const e of existing) {
+      if (!e.startPage || !e.pairedWithId) continue;
+      const parent = sigById[e.pairedWithId];
+      if (!parent) continue;
+      const sig = signature({ kind: e.kind, startPage: e.startPage });
+      seeded[parent] = [...(seeded[parent] ?? []), sig];
+    }
+    return seeded;
+  });
+
   const [cursor, setCursor] = useState(startPage);
   const [saved, setSaved] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -202,13 +226,20 @@ export function AssignSections({
         ]
       : tops;
 
-    return (ordered as Merged[]).map((top) => ({
-      section: top,
-      children: merged.filter((c) => parentOf(signature(c)) === signature(top)),
-    }));
+    return (ordered as Merged[]).map((top) => {
+      const topSig = signature(top);
+      const mine = merged.filter((c) => parentOf(signature(c)) === topSig);
+      const wanted = childOrder[topSig];
+      if (!wanted) return { section: top, children: mine };
+
+      const bySig = new Map(mine.map((c) => [signature(c), c]));
+      const sorted = wanted.map((sig) => bySig.get(sig)).filter(Boolean) as Merged[];
+      const rest = mine.filter((c) => !wanted.includes(signature(c)));
+      return { section: top, children: [...sorted, ...rest] };
+    });
     // parentOf reads manualNest and autoNest, both listed below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [merged, manualNest, autoNest, manualOrder]);
+  }, [merged, manualNest, autoNest, manualOrder, childOrder]);
 
   const marks = useMemo(() => {
     const out: Record<number, PageMark> = {};
@@ -299,11 +330,32 @@ export function AssignSections({
       // Dropping onto a child means "join that child's parent".
       const parent = parentOf(target.sig) ?? target.sig;
       if (!canNestUnder(source, parent)) return;
+      const siblings = (tree.find((n) => signature(n.section) === parent)?.children ?? [])
+        .map(signature)
+        .filter((sig) => sig !== source);
       setManualNest((m) => ({ ...m, [source]: parent }));
+      setChildOrder((co) => ({ ...co, [parent]: [...siblings, source] }));
       return;
     }
 
     if (source === target.sig) return;
+
+    // Dropping beside a substep means "sit next to it", not "become a step".
+    const targetParent = parentOf(target.sig);
+    if (targetParent && targetParent !== source) {
+      if (!canNestUnder(source, targetParent)) return;
+      const siblings = (tree.find((n) => signature(n.section) === targetParent)?.children ?? [])
+        .map(signature)
+        .filter((sig) => sig !== source);
+      const at = siblings.indexOf(target.sig);
+      const insertAt = at < 0 ? siblings.length : target.mode === "after" ? at + 1 : at;
+      setManualNest((m) => ({ ...m, [source]: targetParent }));
+      setChildOrder((co) => ({
+        ...co,
+        [targetParent]: [...siblings.slice(0, insertAt), source, ...siblings.slice(insertAt)],
+      }));
+      return;
+    }
 
     // Reordering pulls the section out to the top level first.
     setManualNest((m) => ({ ...m, [source]: null }));
@@ -417,8 +469,8 @@ export function AssignSections({
             <span className="text-2xs text-faint">{tree.length}</span>
           </div>
           <p className="mt-0.5 text-2xs text-faint">
-            Drag a step to reorder it. Drop on the right third of a row, or on an "attach under"
-            slot, to tuck it beneath that step.
+            Drag to reorder, substeps included. Drop on the right third of a row, or on an
+            "attach under" slot, to tuck a step beneath another.
           </p>
 
           {tree.length === 0 ? (
