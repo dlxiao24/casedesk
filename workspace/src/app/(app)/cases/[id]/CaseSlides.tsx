@@ -10,6 +10,10 @@ import type { ViewSection } from "./CaseView";
 configureWorker(pdfjs);
 
 /**
+ * The measured width sets render resolution only; the canvases are scaled to
+ * fit with CSS. That is deliberate — if layout changes re-rendered pages, a
+ * scrollbar appearing would restart the whole cycle.
+ *
  * One <Document> for the whole case rather than one per section — pdf.js opens
  * the file once and every page draws from the same handle, which is the
  * difference between a case page that loads and one that spawns twenty parsers.
@@ -24,12 +28,24 @@ export function CaseSlides({
   const [width, setWidth] = useState(0);
   const observer = useRef<ResizeObserver | null>(null);
 
-  // Callback ref, not a mount effect: this lives inside <Document>, which shows
-  // a placeholder until the file is open, so the node arrives late.
+  /**
+   * Callback ref, not a mount effect: this lives inside <Document>, which shows
+   * a placeholder until the file is open, so the node arrives late.
+   *
+   * The width only ever ratchets upward, and only in steps larger than a
+   * scrollbar. Tracking it exactly created a loop: rendering pages makes the
+   * document taller, which brings in the window scrollbar, which narrows this
+   * container, which re-renders every canvas and changes the height again. The
+   * page flickered open and shut until the tab stopped responding.
+   */
   const measure = useCallback((el: HTMLDivElement | null) => {
     observer.current?.disconnect();
     if (!el) return;
-    const read = () => setWidth(el.clientWidth);
+    const read = () =>
+      setWidth((prev) => {
+        const next = el.clientWidth;
+        return next > prev + 32 ? next : prev;
+      });
     read();
     const ro = new ResizeObserver(read);
     ro.observe(el);
@@ -77,7 +93,7 @@ export function CaseSlides({
                 {s.bodyText}
               </pre>
             ) : fileUrl && pages.length > 0 && width > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-2 [&_canvas]:!h-auto [&_canvas]:!w-full">
                 {pages.map((p) => (
                   <Page
                     key={p}
