@@ -357,3 +357,28 @@ export async function exitSession(sessionId: string, totalSeconds: number) {
   revalidatePath("/sessions");
   redirect("/library");
 }
+
+/**
+ * Permanent delete, admin only, and only once archived.
+ *
+ * Scores, section notes and takeaways go with it by schema cascade — they are
+ * parts of the session rather than records in their own right.
+ */
+export async function deleteSession(sessionId: string) {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    return { error: "Only an admin can permanently delete a session." };
+  }
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    select: { archived: true },
+  });
+  if (!session) return { error: "That session no longer exists." };
+  if (!session.archived) {
+    return { error: "Archive the session first if you really mean to delete it." };
+  }
+
+  await db.session.delete({ where: { id: sessionId } });
+  revalidatePath("/sessions");
+  return { error: undefined };
+}

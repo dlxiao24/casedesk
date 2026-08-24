@@ -95,3 +95,40 @@ export async function searchCandidates(query: string) {
     select: { id: true, name: true, cohort: true, year: true },
   });
 }
+
+/**
+ * Permanent delete, admin only, and only once archived.
+ *
+ * Archiving is the reversible step and stays the default (§14); this is the
+ * escape hatch for a duplicate or a test record. Sessions are removed
+ * explicitly rather than by a schema cascade, so that deleting a candidate is
+ * the only thing that can ever take their sessions with them.
+ */
+export async function deleteCandidate(id: string, typedName = "") {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    return { error: "Only an admin can permanently delete a candidate." };
+  }
+
+  const candidate = await db.candidate.findUnique({
+    where: { id },
+    select: { name: true, archived: true, _count: { select: { sessions: true } } },
+  });
+  if (!candidate) return { error: "That candidate no longer exists." };
+  if (!candidate.archived) {
+    return { error: `Archive ${candidate.name} first if you really mean to delete them.` };
+  }
+
+  const sessions = candidate._count.sessions;
+  if (sessions > 0 && typedName.trim() !== candidate.name) {
+    return { error: "The typed name does not match. Nothing was deleted." };
+  }
+
+  await db.$transaction([
+    db.session.deleteMany({ where: { candidateId: id } }),
+    db.candidate.delete({ where: { id } }),
+  ]);
+  revalidatePath("/candidates");
+  revalidatePath("/sessions");
+  return { error: undefined };
+}

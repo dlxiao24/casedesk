@@ -7,6 +7,8 @@ import type { CaseFormat, CaseType, ReadinessState, TargetRound } from "@prisma/
 import { ScoreBar } from "@/components/ScoreBar";
 import { CASE_ATTRIBUTES, CASE_TYPES, READINESS } from "@/lib/constants";
 import { ago } from "@/lib/format";
+import { deleteCase } from "@/actions/cases";
+import { DeleteForever } from "@/components/DeleteForever";
 
 export type Row = {
   id: string;
@@ -31,10 +33,11 @@ export type Row = {
   sectionCount: number;
   lastDeliveredAt: string | null;
   ownerName: string;
+  archived: boolean;
 };
 
 /** The useful information is in the rows, not in stat cards above them (§11). */
-export function LibraryTable({ rows }: { rows: Row[] }) {
+export function LibraryTable({ rows, isAdmin }: { rows: Row[]; isAdmin: boolean }) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   return (
@@ -129,9 +132,21 @@ export function LibraryTable({ rows }: { rows: Row[] }) {
                 </td>
                 <td className="tabular px-3 py-2 text-right text-muted">{row.deliveredCount}</td>
                 <td className="px-3 py-2 text-right">
-                  <Link href={`/sessions/new?caseId=${row.id}`} className="btn btn-primary py-1">
-                    Administer case
-                  </Link>
+                  {isAdmin && row.archived ? (
+                    <DeleteForever
+                      name={row.title}
+                      carries={
+                        row.deliveredCount > 0
+                          ? `${row.deliveredCount} session${row.deliveredCount === 1 ? "" : "s"} and their reports`
+                          : undefined
+                      }
+                      onDelete={(typed) => deleteCase(row.id, typed)}
+                    />
+                  ) : (
+                    <Link href={`/sessions/new?caseId=${row.id}`} className="btn btn-primary py-1">
+                      Administer case
+                    </Link>
+                  )}
                 </td>
               </tr>
               {isOpen && <CaseDetailRow row={row} />}

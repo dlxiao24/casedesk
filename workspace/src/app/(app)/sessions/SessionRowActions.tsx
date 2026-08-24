@@ -4,18 +4,23 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import type { SessionStatus } from "@prisma/client";
-import { abandonSession, setSessionArchived } from "@/actions/sessions";
+import { abandonSession, deleteSession, setSessionArchived } from "@/actions/sessions";
+import { DeleteForever } from "@/components/DeleteForever";
 
 export function SessionRowActions({
   id,
   status,
   archived,
   canEdit,
+  isAdmin,
+  label,
 }: {
   id: string;
   status: SessionStatus;
   archived: boolean;
   canEdit: boolean;
+  isAdmin: boolean;
+  label: string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -53,6 +58,10 @@ export function SessionRowActions({
         >
           {archived ? "Restore" : "Archive"}
         </button>
+      )}
+      {/* Only once archived: the reversible step has to come first. */}
+      {isAdmin && archived && (
+        <DeleteForever name={label} onDelete={() => deleteSession(id)} />
       )}
     </span>
   );

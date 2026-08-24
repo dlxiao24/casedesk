@@ -207,32 +207,39 @@ export async function appendPersonalNote(caseId: string, text: string) {
 }
 
 /**
- * Hard delete, for a case that should never have existed — the usual cause is a
- * mis-drawn page range while splitting a casebook.
+ * Permanent delete, admin only.
  *
- * Refused once anything has been run on it. Deleting would cascade to every
- * session, which means a candidate's scores and feedback, and no amount of
- * confirmation copy makes that a reasonable thing to do by accident. Archiving
- * is the answer there (§14).
+ * A case nobody has run goes immediately. One with sessions behind it has to be
+ * archived first and then confirmed by typing its title, because deleting it
+ * cascades to every session — a candidate's scores and their written report.
+ * The spec's soft-delete default (§14) still holds for coaches; this is the
+ * escape hatch for an admin clearing out genuinely dead records.
  */
-export async function deleteCase(caseId: string) {
+export async function deleteCase(caseId: string, typedTitle = "") {
   const user = await requireUser();
   if (user.role !== "ADMIN") {
     return { error: "Only an admin can build the case library." };
   }
   const target = await db.case.findUniqueOrThrow({
     where: { id: caseId },
-    select: { ownerId: true, title: true, _count: { select: { sessions: true } } },
+    select: { ownerId: true, title: true, archived: true, _count: { select: { sessions: true } } },
   });
-  if (target.ownerId !== user.id && user.role !== "ADMIN") {
-    return { error: "Only the owner or an admin can delete a case." };
-  }
-  if (target._count.sessions > 0) {
-    return {
-      error: `“${target.title}” has ${target._count.sessions} session${
-        target._count.sessions === 1 ? "" : "s"
-      } against it. Archive it instead — deleting would take that feedback with it.`,
-    };
+  const sessions = target._count.sessions;
+
+  // A case nobody has run holds nothing worth protecting — the usual cause is a
+  // mis-drawn page range, and making someone archive it first is friction for
+  // no gain.
+  if (sessions > 0) {
+    if (!target.archived) {
+      return {
+        error: `“${target.title}” has ${sessions} session${sessions === 1 ? "" : "s"} against it. Archive it first if you really mean to delete it.`,
+      };
+    }
+    // Archived and still deliberate: make them type the title, because this
+    // takes every score and every written report down with it.
+    if (typedTitle.trim() !== target.title) {
+      return { error: "The typed title does not match. Nothing was deleted." };
+    }
   }
 
   await db.case.delete({ where: { id: caseId } });

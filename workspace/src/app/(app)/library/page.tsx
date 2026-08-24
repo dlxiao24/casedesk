@@ -65,7 +65,7 @@ export default async function LibraryPage({
           )}
         </div>
       ) : (
-        <LibraryTable rows={rows.map(serialize)} />
+        <LibraryTable rows={rows.map(serialize)} isAdmin={isAdmin(user)} />
       )}
     </div>
   );
@@ -98,5 +98,6 @@ function serialize(row: Awaited<ReturnType<typeof libraryRows>>[number]) {
     sectionCount: row._count.sections,
     lastDeliveredAt: row.lastDeliveredAt ? row.lastDeliveredAt.toISOString() : null,
     ownerName: row.owner.name,
+    archived: row.archived,
   };
 }

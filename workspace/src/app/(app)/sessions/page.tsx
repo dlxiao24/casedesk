@@ -128,6 +128,8 @@ export default async function SessionsPage({
                       status={s.status}
                       archived={s.archived}
                       canEdit={s.coachId === user.id || user.role === "ADMIN"}
+                      isAdmin={user.role === "ADMIN"}
+                      label={`${s.case.title} · ${shortDate(s.startedAt)}`}
                     />
                   </td>
                 </tr>

@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { candidateScope } from "@/lib/candidateAccess";
 import { ago } from "@/lib/format";
 import { NewCandidateInline } from "./NewCandidateInline";
+import { CandidateRowActions } from "./CandidateRowActions";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +74,13 @@ export default async function CandidatesPage({
                 <span className="text-2xs text-faint">
                   last: {c.sessions[0].case.title}, {ago(c.sessions[0].startedAt)}
                 </span>
+              )}
+              {user.role === "ADMIN" && c.archived && (
+                <CandidateRowActions
+                  id={c.id}
+                  name={c.name}
+                  sessionCount={c._count.sessions}
+                />
               )}
             </li>
           ))}
