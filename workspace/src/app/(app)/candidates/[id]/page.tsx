@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { canSeeCandidate } from "@/lib/candidateAccess";
 import { DIMENSIONS } from "@/lib/constants";
 import { clock, shortDate } from "@/lib/format";
 import { ScoreBar } from "@/components/ScoreBar";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 /** §9 — the feature that compounds. */
 export default async function CandidatePage({ params }: { params: Promise<{ id: string }> }) {
-  await requireUser();
+  const user = await requireUser();
   const { id } = await params;
 
   const candidate = await db.candidate.findUnique({
@@ -29,7 +30,9 @@ export default async function CandidatePage({ params }: { params: Promise<{ id: 
       },
     },
   });
-  if (!candidate) notFound();
+  // Not found rather than forbidden: a coach has no business learning that a
+  // given candidate id exists at all.
+  if (!candidate || !canSeeCandidate(user, candidate)) notFound();
 
   const complete = [...candidate.sessions]
     .filter((s) => s.scores.length > 0)

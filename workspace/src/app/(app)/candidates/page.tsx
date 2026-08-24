@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { candidateScope } from "@/lib/candidateAccess";
 import { ago } from "@/lib/format";
 import { NewCandidateInline } from "./NewCandidateInline";
 
@@ -11,12 +12,12 @@ export default async function CandidatesPage({
 }: {
   searchParams: Promise<{ archived?: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const { archived } = await searchParams;
   const showArchived = archived === "1";
 
   const candidates = await db.candidate.findMany({
-    where: { archived: showArchived },
+    where: { archived: showArchived, ...candidateScope(user) },
     orderBy: { name: "asc" },
     include: {
       _count: { select: { sessions: true } },
@@ -35,6 +36,7 @@ export default async function CandidatesPage({
           <h1 className="text-base text-ink">Candidates</h1>
           <p className="text-sm text-muted">
             {candidates.length} {showArchived ? "archived" : "active"}
+            {user.role === "ADMIN" ? " · every coach's" : " · the ones you added"}
           </p>
         </div>
         <Link

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { CASE_FORMATS, CASE_TYPES, TARGET_ROUNDS } from "@/lib/constants";
 import { ago, shortDate } from "@/lib/format";
+import { HIDDEN_CANDIDATE_LABEL, canSeeCandidate } from "@/lib/candidateAccess";
 import { ReadinessChip } from "../../library/LibraryTable";
 import { CaseAttributes } from "./CaseAttributes";
 import { PersonalNotes } from "./PersonalNotes";
@@ -31,7 +32,7 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
         orderBy: { startedAt: "desc" },
         take: 8,
         include: {
-          candidate: { select: { id: true, name: true } },
+          candidate: { select: { id: true, name: true, createdById: true } },
           coach: { select: { name: true } },
         },
       },
@@ -152,12 +153,16 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
                 {kase.sessions.map((s) => (
                   <li key={s.id} className="flex items-center gap-3 px-3 py-2 text-sm">
                     <span className="tabular w-24 text-faint">{shortDate(s.startedAt)}</span>
-                    <Link
-                      href={`/candidates/${s.candidate.id}`}
-                      className="text-ink hover:text-accent"
-                    >
-                      {s.candidate.name}
-                    </Link>
+                    {canSeeCandidate(user, s.candidate) ? (
+                      <Link
+                        href={`/candidates/${s.candidate.id}`}
+                        className="text-ink hover:text-accent"
+                      >
+                        {s.candidate.name}
+                      </Link>
+                    ) : (
+                      <span className="text-faint">{HIDDEN_CANDIDATE_LABEL}</span>
+                    )}
                     <span className="text-faint">with {s.coach.name}</span>
                     <span className="flex-1" />
                     <Link

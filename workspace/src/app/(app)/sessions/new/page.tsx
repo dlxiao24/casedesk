@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { candidateScope } from "@/lib/candidateAccess";
 import { shortDate } from "@/lib/format";
 import { StartSessionForm } from "./StartSessionForm";
 
@@ -12,7 +13,7 @@ export default async function NewSessionPage({
 }: {
   searchParams: Promise<{ caseId?: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const { caseId } = await searchParams;
   if (!caseId) notFound();
 
@@ -23,7 +24,7 @@ export default async function NewSessionPage({
   if (!kase) notFound();
 
   const candidates = await db.candidate.findMany({
-    where: { archived: false },
+    where: { archived: false, ...candidateScope(user) },
     orderBy: { name: "asc" },
     select: { id: true, name: true, cohort: true, year: true },
     take: 500,

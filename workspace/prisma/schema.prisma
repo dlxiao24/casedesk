@@ -23,6 +23,7 @@ model User {
   coachCases CoachCase[]
   casebooks  Casebook[]
   invitesSent Invite[]   @relation("InviteSender")
+  candidates  Candidate[] @relation("CandidateCreator")
 }
 
 enum Role {
@@ -209,6 +210,11 @@ enum ReadinessState {
 
 model Candidate {
   id        String    @id @default(cuid())
+  /// The coach who added this candidate. Coaches see only their own; admins
+  /// see everyone (deliberately narrower than spec §2, at the club's request).
+  /// Nullable so a candidate outlives the account that created them.
+  createdById String?
+  createdBy   User?   @relation("CandidateCreator", fields: [createdById], references: [id], onDelete: SetNull)
   name      String
   email     String?
   cohort    String?
@@ -217,6 +223,8 @@ model Candidate {
   archived  Boolean   @default(false)
   createdAt DateTime  @default(now())
   sessions  Session[]
+
+  @@index([createdById])
 }
 
 model Session {

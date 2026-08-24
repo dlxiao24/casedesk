@@ -3,6 +3,7 @@ import clsx from "clsx";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { clock, shortDate } from "@/lib/format";
+import { HIDDEN_CANDIDATE_LABEL, canSeeCandidate } from "@/lib/candidateAccess";
 import { SessionRowActions } from "./SessionRowActions";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ export default async function SessionsPage({
     orderBy: { startedAt: "desc" },
     take: 200,
     include: {
-      candidate: { select: { id: true, name: true } },
+      candidate: { select: { id: true, name: true, createdById: true } },
       case: { select: { id: true, title: true } },
       coach: { select: { name: true } },
       _count: { select: { scores: true } },
@@ -36,7 +37,9 @@ export default async function SessionsPage({
         <div>
           <h1 className="text-base text-ink">Sessions</h1>
           <p className="text-sm text-muted">
-            Everyone&apos;s sessions, so you can see what a candidate has already done.
+            {user.role === "ADMIN"
+              ? "Every coach's sessions, with every candidate named."
+              : "Every coach's sessions. Candidates other coaches added are not named."}
           </p>
         </div>
         <div className="flex gap-2">
@@ -78,9 +81,16 @@ export default async function SessionsPage({
                 <tr key={s.id} className="border-b border-rule/60 last:border-b-0 hover:bg-panel">
                   <td className="tabular px-3 py-2 text-muted">{shortDate(s.startedAt)}</td>
                   <td className="px-3 py-2">
-                    <Link href={`/candidates/${s.candidate.id}`} className="text-ink hover:text-accent">
-                      {s.candidate.name}
-                    </Link>
+                    {canSeeCandidate(user, s.candidate) ? (
+                      <Link
+                        href={`/candidates/${s.candidate.id}`}
+                        className="text-ink hover:text-accent"
+                      >
+                        {s.candidate.name}
+                      </Link>
+                    ) : (
+                      <span className="text-faint">{HIDDEN_CANDIDATE_LABEL}</span>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <Link href={`/cases/${s.case.id}`} className="text-muted hover:text-accent">
