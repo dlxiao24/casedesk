@@ -82,7 +82,12 @@ export function Runner({
   );
   const notesRef = useRef<NoteState>({});
   notesRef.current = notes;
+  // Absent means shown. Interviewer solutions are for the coach's eyes, and
+  // the coach is the only one looking at this screen.
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
+  const isShown = (id: string) => revealed[id] ?? true;
+  const toggleShown = (id: string) =>
+    setRevealed((v) => ({ ...v, [id]: !(v[id] ?? true) }));
   const [paused, setPaused] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -235,7 +240,7 @@ export function Runner({
       } else if (!typing && e.key.toLowerCase() === "r") {
         e.preventDefault();
         const section = sections[indexRef.current];
-        if (section) setRevealed((r) => ({ ...r, [section.id]: !r[section.id] }));
+        if (section) toggleShown(section.id);
       } else if (!typing && e.key === " ") {
         e.preventDefault();
         setPaused((p) => !p);
@@ -268,7 +273,7 @@ export function Runner({
   const sectionSeconds = active ? (notes[active.id]?.secondsSpent ?? 0) : 0;
   const overTarget = Boolean(active?.targetMins && sectionSeconds > active.targetMins * 60);
   const hidden = active ? isHiddenKind(active.kind) || active.isSolution : false;
-  const isRevealed = active ? Boolean(revealed[active.id]) : false;
+  const isRevealed = active ? isShown(active.id) : false;
 
   // Every page the case spans, for the mini-navigator filmstrip.
   const deckPages = useMemo(() => {
@@ -314,32 +319,32 @@ export function Runner({
 
   return (
     <div className="relative flex h-screen flex-col bg-paper">
-      <header className="flex h-9 shrink-0 items-center gap-3 border-b border-rule px-3 text-2xs">
-        <span className="text-muted">{caseTitle}</span>
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-rule px-4 text-sm">
+        <span className="text-ink">{caseTitle}</span>
         <span className="text-faint">·</span>
         <span className="text-muted">{candidateName}</span>
         <span className="flex-1" />
         <SaveIndicator state={noteSaver.state} />
-        <button className="btn btn-quiet py-0" onClick={() => setPaletteOpen(true)}>
+        <button className="btn btn-quiet" onClick={() => setPaletteOpen(true)}>
           Jump ⌘K
         </button>
-        <button className="btn btn-quiet py-0" onClick={() => setAdding(true)}>
+        <button className="btn btn-quiet" onClick={() => setAdding(true)}>
           Add section
         </button>
         {/* Its own tab, so it can be screenshared or printed without the rest of
             the runner — and so nothing here can scroll a solution into view. */}
         <a
-          className="btn btn-quiet py-0"
+          className="btn btn-quiet"
           href={`/sessions/${sessionId}/exhibits`}
           target="_blank"
           rel="noopener"
         >
           Exhibit view ↗
         </a>
-        <button className="btn btn-quiet py-0" onClick={exit} disabled={ending}>
+        <button className="btn btn-quiet" onClick={exit} disabled={ending}>
           Exit case
         </button>
-        <button className="btn py-0" onClick={finish} disabled={ending}>
+        <button className="btn" onClick={finish} disabled={ending}>
           {ending ? "Ending…" : "Finish case ⌘S"}
         </button>
       </header>
@@ -367,16 +372,16 @@ export function Runner({
                 {isHiddenKind(c.kind) && (
                   <button
                     className="btn btn-quiet py-0 text-2xs"
-                    onClick={() => setRevealed((r) => ({ ...r, [c.id]: !r[c.id] }))}
+                    onClick={() => toggleShown(c.id)}
                   >
-                    {revealed[c.id] ? "Hide" : "Reveal"}
+                    {isShown(c.id) ? "Hide" : "Reveal"}
                   </button>
                 )}
               </div>
               <SectionMaterial
                 section={c}
                 fileUrl={fileUrl}
-                revealed={Boolean(revealed[c.id])}
+                revealed={isShown(c.id)}
                 onReveal={() => setRevealed((r) => ({ ...r, [c.id]: true }))}
               />
             </div>
@@ -387,18 +392,18 @@ export function Runner({
 
         {/* Right: the two things the coach is actually doing. */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex items-baseline gap-2 border-b border-rule px-3 py-1.5">
-            <span className="tabular text-2xs text-faint">
+          <div className="flex items-baseline gap-2 border-b border-rule px-4 py-2.5">
+            <span className="tabular text-xs text-faint">
               Section {index + 1} of {sections.length}
             </span>
             <span className={clsx("chip", sectionKindMeta(active.kind).chip)}>
               {sectionKindMeta(active.kind).label}
             </span>
-            <span className="truncate text-sm text-ink">{active.label}</span>
+            <span className="truncate text-base text-ink">{active.label}</span>
             {hidden && (
               <button
-                className="btn btn-quiet ml-auto py-0"
-                onClick={() => setRevealed((r) => ({ ...r, [active.id]: !r[active.id] }))}
+                className="btn btn-quiet ml-auto"
+                onClick={() => toggleShown(active.id)}
               >
                 {isRevealed ? "Hide (R)" : "Reveal (R)"}
               </button>
@@ -436,21 +441,21 @@ export function Runner({
         }}
       />
 
-      <footer className="flex h-9 shrink-0 items-center gap-3 border-t border-rule px-3 text-2xs">
-        <span className="tabular text-ink">{clock(total)} total</span>
-        <span className={clsx("tabular", overTarget ? "text-warn" : "text-muted")}>
+      <footer className="flex h-14 shrink-0 items-center gap-4 border-t border-rule px-4 text-sm">
+        <span className="tabular text-base text-ink">{clock(total)} total</span>
+        <span className={clsx("tabular text-base", overTarget ? "text-warn" : "text-muted")}>
           {clock(sectionSeconds)} this section
           {active.targetMins ? ` / ${active.targetMins}:00` : ""}
         </span>
-        <button className="btn btn-quiet py-0" onClick={() => setPaused((p) => !p)}>
+        <button className="btn btn-quiet" onClick={() => setPaused((p) => !p)}>
           {paused ? "Resume (space)" : "Pause (space)"}
         </button>
         <span className="flex-1" />
-        <button className="btn py-0" onClick={() => go(index - 1)} disabled={index === 0}>
+        <button className="btn" onClick={() => go(index - 1)} disabled={index === 0}>
           ◀ prev
         </button>
         <button
-          className="btn py-0"
+          className="btn"
           onClick={() => go(index + 1)}
           disabled={index === sections.length - 1}
         >
@@ -510,8 +515,8 @@ function NoteField({
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col border-b border-rule last:border-b-0">
-      <div className="flex items-baseline gap-2 px-3 pt-2">
-        <span className="label">{label}</span>
+      <div className="flex items-baseline gap-2 px-4 pt-2.5">
+        <span className="label text-xs">{label}</span>
         {hint && <span className="text-2xs text-faint">{hint}</span>}
       </div>
       <textarea
@@ -527,7 +532,7 @@ function NoteField({
           }
         }}
         spellCheck={false}
-        className="prose-notes min-h-0 flex-1 resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-ink focus:outline-none"
+        className="prose-notes min-h-0 flex-1 resize-none bg-transparent px-4 py-2 text-base leading-relaxed text-ink focus:outline-none"
       />
     </div>
   );
@@ -588,7 +593,7 @@ function AddSectionInline({
   const [pending, start] = useTransition();
 
   return (
-    <div className="absolute inset-x-0 bottom-9 mx-auto w-96 rounded border border-rule bg-panel p-3 shadow-xl">
+    <div className="absolute inset-x-0 bottom-14 mx-auto w-96 rounded border border-rule bg-panel p-3 shadow-xl">
       <div className="flex gap-2">
         <select
           className="field w-auto"

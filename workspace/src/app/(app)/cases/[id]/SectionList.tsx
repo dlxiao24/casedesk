@@ -76,7 +76,7 @@ export function SectionList({
                 {sectionKindMeta(s.kind).label}
               </span>
               {isHiddenKind(s.kind) && (
-                <span className="chip border-rule text-faint">hidden until revealed</span>
+                <span className="chip border-rule text-faint">interviewer only</span>
               )}
               <span className="tabular text-2xs text-faint">
                 {s.startPage ? `pp. ${s.startPage}–${s.endPage}` : s.bodyText ? "typed" : "no pages"}

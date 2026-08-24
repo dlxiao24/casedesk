@@ -65,8 +65,8 @@ export const SECTION_KINDS: {
   hidden?: boolean;
 }[] = [
   { value: "PROMPT", label: "Prompt", hotkey: "1", spine: "bg-sky-500", chip: "text-sky-300 border-sky-900" },
-  { value: "EXHIBIT_PROMPT", label: "Exhibit (prompt)", hotkey: "2", spine: "bg-violet-300", chip: "text-violet-200 border-violet-900" },
-  { value: "EXHIBIT", label: "Interviewee exhibit", hotkey: "3", spine: "bg-violet-500", chip: "text-violet-300 border-violet-900" },
+  { value: "EXHIBIT_PROMPT", label: "Prompt for exhibit", hotkey: "2", spine: "bg-violet-300", chip: "text-violet-200 border-violet-900" },
+  { value: "EXHIBIT", label: "Exhibit (show to interviewee)", hotkey: "3", spine: "bg-violet-500", chip: "text-violet-300 border-violet-900" },
   { value: "MATH", label: "Math", hotkey: "4", spine: "bg-amber-500", chip: "text-amber-300 border-amber-900" },
   { value: "BRAINSTORM", label: "Brainstorm", hotkey: "5", spine: "bg-teal-500", chip: "text-teal-300 border-teal-900" },
   { value: "SYNTHESIS", label: "Synthesis/Recommendation", hotkey: "6", spine: "bg-emerald-500", chip: "text-emerald-300 border-emerald-900" },
@@ -113,7 +113,13 @@ export function sectionKindMeta(kind: SectionKind) {
   return SECTION_KINDS.find((k) => k.value === kind) ?? SECTION_KINDS[0];
 }
 
-/** Kinds that are blurred in the runner until revealed (§4.3, §6.2). */
+/**
+ * Kinds the candidate must never see. They still open unblurred in the runner —
+ * the coach is the only person looking at that screen, and blurring the answer
+ * key mid-case cost a keystroke for no protection. What actually keeps these
+ * away from a candidate is the exhibit view, which filters on
+ * `isCandidateSafeKind`, and the report, which drops them outright.
+ */
 export function isHiddenKind(kind: SectionKind) {
   return kind === "INTERVIEWER_GUIDE";
 }
