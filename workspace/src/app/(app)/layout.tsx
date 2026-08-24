@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { ago } from "@/lib/format";
@@ -19,9 +20,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-rule bg-paper/95 backdrop-blur">
-        <div className="mx-auto flex h-11 max-w-6xl items-center gap-1 px-4">
-          <Link href="/library" className="mr-3 text-sm tracking-tight text-ink">
-            Case&nbsp;Desk
+        <div className="mx-auto flex h-14 max-w-6xl items-center gap-1 px-4">
+          <Link href="/library" className="mr-4 shrink-0" aria-label="Case Desk — home">
+            {/* The horizontal lockup, so the wordmark stays legible in a bar
+                this short. `priority` because it is above the fold on every
+                page and a flash of missing logo reads as a broken app. */}
+            <Image
+              src="/logo-wide.png"
+              alt="Case Desk"
+              width={1229}
+              height={284}
+              priority
+              className="h-7 w-auto"
+            />
           </Link>
           <NavLink href="/library">Library</NavLink>
           <NavLink href="/casebooks">Casebooks</NavLink>

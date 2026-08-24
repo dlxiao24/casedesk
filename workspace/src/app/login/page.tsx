@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { supabaseConfigured } from "@/lib/env";
@@ -10,7 +11,16 @@ export default async function LoginPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
-      <h1 className="text-lg text-ink">Case Desk</h1>
+      {/* The stacked lockup, which is what it was drawn for — there is room
+          here, unlike the header bar. */}
+      <Image
+        src="/logo.png"
+        alt="Case Desk"
+        width={935}
+        height={685}
+        priority
+        className="mb-2 h-24 w-auto"
+      />
       <p className="mt-1 text-sm text-muted">
         Coaches only. Sign in with the email you were invited on.
       </p>
