@@ -36,10 +36,17 @@ that need it.
 
 ## Setup
 
+The repository root is `casedesk/`; the app lives in `workspace/`, so every command below
+runs from there.
+
 ```bash
+cd workspace
 npm install
 cp .env.example .env
 ```
+
+`npm install` also copies the pdf.js worker into `public/` and generates the Prisma client.
+Both are gitignored build outputs, so a fresh clone needs the install before it will typecheck.
 
 Fill in `.env` from your Supabase project (Settings → Database for the connection strings, Settings
 → API for the keys), then:
