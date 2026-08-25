@@ -6,8 +6,12 @@
  * component; the part that reads cookies lives in `viewer.ts`.
  */
 
-/** How many real cases a signed-out visitor may open. */
-export const GUEST_CASE_LIMIT = 5;
+/**
+ * A ceiling on the shop window, not a policy. Which cases a guest sees is an
+ * admin's choice, one case at a time; this only stops a query from fetching
+ * the whole library if somebody flags everything.
+ */
+export const GUEST_SAMPLE_CAP = 50;
 
 /** Cookie holding a guest's random id. Issued by middleware. */
 export const GUEST_COOKIE = "casedesk_guest";

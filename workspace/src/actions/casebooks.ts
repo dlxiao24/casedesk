@@ -286,7 +286,7 @@ export async function deleteCasebook(casebookId: string, typedTitle: string) {
 export async function signedFileUrl(key: string, expiresInSeconds = 60 * 60) {
   const viewer = await currentViewer();
   if (viewer.kind === "guest") {
-    const allowed = await guestReadableFileKeys();
+    const allowed = await guestReadableFileKeys(viewer.guestKey);
     if (!allowed.includes(key)) return null;
   }
 

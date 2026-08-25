@@ -111,6 +111,11 @@ model Case {
 
   notes     String?
   archived  Boolean  @default(false)
+  /// The shop window. An admin picks which cases a signed-out visitor may
+  /// read; everything else shows as a blurred placeholder. Only sectioned,
+  /// unarchived cases are eligible — running an unsectioned case writes a
+  /// section back to the library, which is not a visitor's to do.
+  sampleForGuests Boolean @default(false)
   createdAt DateTime @default(now())
 
   sections   Section[]

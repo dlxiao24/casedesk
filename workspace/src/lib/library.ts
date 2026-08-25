@@ -1,7 +1,7 @@
 import type { Prisma, ReadinessState } from "@prisma/client";
 import { db } from "@/lib/db";
 import { CASE_ATTRIBUTES, type CaseAttributeKey } from "@/lib/constants";
-import { GUEST_CASE_LIMIT } from "@/lib/guest";
+import { GUEST_SAMPLE_CAP } from "@/lib/guest";
 
 export type LibraryFilters = {
   q?: string;
@@ -149,13 +149,12 @@ const LIBRARY_INCLUDE = {
 } satisfies Prisma.CaseInclude;
 
 /**
- * The shop window a signed-out visitor sees: the first few cases by title, and
- * an honest count of the rest.
+ * The shop window a signed-out visitor sees: the cases an admin has opened,
+ * and an honest count of the rest.
  *
- * Alphabetical because a guest has no history to sort by — and fixed, with no
- * filters offered, because filtering is enumeration. A guest who could search
- * would see five cases at a time until they had seen them all, which is not a
- * sample of the library but a slow copy of it.
+ * No filters are offered, because filtering is enumeration. A guest who could
+ * search would see the window's worth of cases at a time until they had seen
+ * them all, which is not a sample of the library but a slow copy of it.
  */
 export async function guestLibrary() {
   const [cases, total] = await Promise.all([
@@ -163,7 +162,7 @@ export async function guestLibrary() {
       where: GUEST_VISIBLE,
       include: LIBRARY_INCLUDE,
       orderBy: { title: "asc" },
-      take: GUEST_CASE_LIMIT,
+      take: GUEST_SAMPLE_CAP,
     }),
     db.case.count({ where: { archived: false } }),
   ]);
@@ -184,15 +183,20 @@ export async function guestLibrary() {
 }
 
 /**
- * Sectioned cases only.
+ * What a guest may open: an admin has to have opened it, and it has to be
+ * sectioned.
  *
- * Running an unsectioned case creates a "Whole case" section as a side effect,
- * which is a write to the shared library — fine when a coach does it, not
- * something a passing visitor should be able to cause. Offering only cases
- * that are already split avoids the question, and an unsectioned case makes a
- * poor demonstration anyway.
+ * The sectioning condition is not a matter of taste. Running an unsectioned
+ * case creates a "Whole case" section as a side effect, which is a write to
+ * the shared library — fine when a coach causes it, not something a passing
+ * visitor should. The toggle refuses to turn on for an unsectioned case, and
+ * this clause is the backstop for a case that loses its sections afterwards.
  */
-const GUEST_VISIBLE = { archived: false, sections: { some: {} } } satisfies Prisma.CaseWhereInput;
+const GUEST_VISIBLE = {
+  archived: false,
+  sampleForGuests: true,
+  sections: { some: {} },
+} satisfies Prisma.CaseWhereInput;
 
 /**
  * The casebook files behind the guest-visible cases.
@@ -202,16 +206,30 @@ const GUEST_VISIBLE = { archived: false, sections: { some: {} } } satisfies Pris
  * word — otherwise the sample library would be a key-guessing game for the
  * whole bucket.
  */
-export async function guestReadableFileKeys(): Promise<string[]> {
-  const cases = await db.case.findMany({
-    where: GUEST_VISIBLE,
-    orderBy: { title: "asc" },
-    take: GUEST_CASE_LIMIT,
-    select: { casebook: { select: { fileKey: true, imageKeys: true } } },
-  });
-  return cases.flatMap((c) =>
-    c.casebook ? [c.casebook.fileKey, ...c.casebook.imageKeys] : [],
-  );
+export async function guestReadableFileKeys(guestKey: string | null): Promise<string[]> {
+  const pickKeys = (c: { casebook: { fileKey: string; imageKeys: string[] } | null }) =>
+    c.casebook ? [c.casebook.fileKey, ...c.casebook.imageKeys] : [];
+
+  const [shopWindow, running] = await Promise.all([
+    db.case.findMany({
+      where: GUEST_VISIBLE,
+      orderBy: { title: "asc" },
+      take: GUEST_SAMPLE_CAP,
+      select: { casebook: { select: { fileKey: true, imageKeys: true } } },
+    }),
+    // Also whatever they are in the middle of running. An admin taking a case
+    // out of the window should not blank the pages of a guest already inside
+    // it — they were let in, and the session is theirs until it ends.
+    guestKey
+      ? db.case.findMany({
+          where: { sessions: { some: { guestKey } } },
+          take: GUEST_SAMPLE_CAP,
+          select: { casebook: { select: { fileKey: true, imageKeys: true } } },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  return [...shopWindow.flatMap(pickKeys), ...running.flatMap(pickKeys)];
 }
 
 /** Ids of the cases a guest is allowed to open. */
@@ -219,7 +237,7 @@ export async function guestVisibleCaseIds(): Promise<string[]> {
   const cases = await db.case.findMany({
     where: GUEST_VISIBLE,
     orderBy: { title: "asc" },
-    take: GUEST_CASE_LIMIT,
+    take: GUEST_SAMPLE_CAP,
     select: { id: true },
   });
   return cases.map((c) => c.id);

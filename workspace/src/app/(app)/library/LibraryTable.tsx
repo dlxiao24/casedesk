@@ -35,6 +35,7 @@ export type Row = {
   lastDeliveredAt: string | null;
   ownerName: string;
   archived: boolean;
+  sampleForGuests: boolean;
 };
 
 type SortKey =
@@ -164,7 +165,9 @@ export function LibraryTable({
           </>
         ) : isGuest ? (
           <span>
-            {rows.length} of {rows.length + lockedCount} cases, in alphabetical order.
+            {rows.length === 0
+              ? "No sample cases are open at the moment."
+              : `${rows.length} of ${rows.length + lockedCount} cases, in alphabetical order.`}
           </span>
         ) : (
           <span>Sorted by what you have run least recently.</span>
@@ -226,6 +229,16 @@ export function LibraryTable({
                         )}
                         {lowQuality && (
                           <span className="chip border-rule text-faint">low quality</span>
+                        )}
+                        {/* Only an admin can change this, so only an admin is
+                            told about it — to a coach it would be noise. */}
+                        {isAdmin && row.sampleForGuests && (
+                          <span
+                            className="chip border-accent/40 text-accent"
+                            title="Signed-out visitors can read this case"
+                          >
+                            guest sample
+                          </span>
                         )}
                       </div>
                       <div className="text-2xs text-faint">

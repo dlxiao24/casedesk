@@ -14,13 +14,16 @@ export function AuthShell({
 }) {
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
+      {/* self-start matters: this is a column flex container, so without it
+          the image stretches to the full column width and w-auto never gets
+          a say. The header lockup escapes that only by sitting in a row. */}
       <Image
         src="/logo.png"
         alt="Case Desk"
         width={935}
         height={685}
         priority
-        className="mb-2 h-24 w-auto"
+        className="mb-2 h-24 w-auto self-start"
       />
       <p className="mt-1 text-sm text-muted">{blurb}</p>
       {children}

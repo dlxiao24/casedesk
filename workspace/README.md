@@ -63,9 +63,10 @@ the bucket should not be public.
 
 Three levels, and only one of them can be self-served.
 
-- **Guest** — nobody is signed in. Reads the first few cases alphabetically, blurred fiction where
-  the rest would be, and can run one against the shared "Sample User" candidate. The session is
-  tied to a cookie, so it is theirs alone and never appears in a coach's lists.
+- **Guest** — nobody is signed in. Reads whichever cases an admin has opened with "Show to guests"
+  on the case page, blurred fiction where the rest would be, and can run one against the shared
+  "Sample User" candidate. The session is tied to a cookie, so it is theirs alone and never appears
+  in a coach's lists. Only sectioned, unarchived cases can be opened this way.
 - **Coach** — anyone who confirms an email address. Reads the whole library, runs cases against
   candidates they add, and keeps their own notes and readiness. Cannot add or split cases.
 - **Admin** — granted by another admin on Settings → Coaches, and no other way. Adds casebooks and

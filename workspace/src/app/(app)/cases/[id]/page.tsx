@@ -16,6 +16,7 @@ import { CaseFields } from "./CaseFields";
 import { ArchiveCase } from "./ArchiveCase";
 import { CaseView } from "./CaseView";
 import { GuestCasePage } from "./GuestCasePage";
+import { SampleForGuests } from "./SampleForGuests";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
       casebook: true,
       owner: { select: { id: true, name: true } },
       sections: { orderBy: { order: "asc" } },
-      _count: { select: { sessions: true } },
+      _count: { select: { sessions: true, sections: true } },
       sessions: {
         where: { archived: false, guestKey: null },
         orderBy: { startedAt: "desc" },
@@ -117,6 +118,13 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
             archived={kase.archived}
             canEdit={isOwner || user.role === "ADMIN"}
             sessionCount={kase._count.sessions}
+          />
+          <SampleForGuests
+            caseId={kase.id}
+            sample={kase.sampleForGuests}
+            isAdmin={user.role === "ADMIN"}
+            sectionCount={kase._count.sections}
+            archived={kase.archived}
           />
           <ReadinessPicker caseId={kase.id} state={state} />
           <Link href={`/sessions/new?caseId=${kase.id}`} className="btn btn-primary">

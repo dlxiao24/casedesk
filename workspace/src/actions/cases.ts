@@ -147,6 +147,40 @@ export async function setArchived(caseId: string, archived: boolean) {
   return { error: undefined };
 }
 
+/**
+ * Put a case in the shop window, or take it out.
+ *
+ * Admin only, and refused for a case a guest could not safely run: an archived
+ * one is not in the library at all, and an unsectioned one would have a
+ * section written into it by the first visitor who pressed start.
+ */
+export async function setSampleForGuests(caseId: string, sample: boolean) {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    return { error: "Only an admin chooses what guests see." };
+  }
+
+  const target = await db.case.findUnique({
+    where: { id: caseId },
+    select: { archived: true, _count: { select: { sections: true } } },
+  });
+  if (!target) return { error: "That case no longer exists." };
+
+  if (sample) {
+    if (target.archived) {
+      return { error: "Restore this case before showing it to guests." };
+    }
+    if (target._count.sections === 0) {
+      return { error: "Split this case into sections first. A guest cannot be the one to create them." };
+    }
+  }
+
+  await db.case.update({ where: { id: caseId }, data: { sampleForGuests: sample } });
+  revalidatePath("/library");
+  revalidatePath(`/cases/${caseId}`);
+  return { error: undefined };
+}
+
 // ---------- CoachCase: everything personal to a coach about a case ----------
 
 /** Created lazily on first interaction (§3). */

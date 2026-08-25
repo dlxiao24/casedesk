@@ -27,12 +27,13 @@ export default async function LibraryPage({
   const params = await searchParams;
   const filters = parseFilters(params);
 
-  const [rows, casebooks, industries, firms, totalCases] = await Promise.all([
+  const [rows, casebooks, industries, firms, totalCases, sampleCount] = await Promise.all([
     libraryRows(user.id, filters),
     db.casebook.findMany({ select: { id: true, title: true }, orderBy: { title: "asc" } }),
     knownIndustries(),
     knownFirms(),
     db.case.count({ where: { archived: false } }),
+    db.case.count({ where: { archived: false, sampleForGuests: true } }),
   ]);
 
   return (
@@ -43,6 +44,12 @@ export default async function LibraryPage({
           <p className="text-sm text-muted">
             {rows.length} case{rows.length === 1 ? "" : "s"}
             {rows.length !== totalCases && ` of ${totalCases}`}
+            {/* The shop window is an admin's responsibility, so it is an
+                admin's line. Nobody else can act on the number. */}
+            {isAdmin(user) &&
+              (sampleCount === 0
+                ? " · nothing is open to guests yet"
+                : ` · ${sampleCount} open to guests`)}
           </p>
         </div>
         {isAdmin(user) && (
@@ -96,6 +103,11 @@ async function GuestLibrary() {
         <p className="text-sm text-muted">
           {total === 0 ? (
             "No cases in the library yet."
+          ) : rows.length === 0 ? (
+            <>
+              The club has not opened any sample cases yet. Create an account to read all {total} of
+              them.
+            </>
           ) : (
             <>
               You are browsing as a guest, so {rows.length} of these {total} cases are open to read.
@@ -105,7 +117,7 @@ async function GuestLibrary() {
         </p>
       </div>
 
-      {rows.length > 0 && (
+      {total > 0 && (
         <LibraryTable rows={rows.map(serialize)} isAdmin={false} lockedCount={lockedCount} isGuest />
       )}
     </div>
@@ -140,5 +152,6 @@ function serialize(row: Awaited<ReturnType<typeof guestLibrary>>["rows"][number]
     lastDeliveredAt: row.lastDeliveredAt ? row.lastDeliveredAt.toISOString() : null,
     ownerName: row.owner.name,
     archived: row.archived,
+    sampleForGuests: row.sampleForGuests,
   };
 }
