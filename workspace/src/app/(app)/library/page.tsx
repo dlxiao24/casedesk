@@ -31,8 +31,7 @@ export default async function LibraryPage({
           <h1 className="text-base text-ink">Library</h1>
           <p className="text-sm text-muted">
             {rows.length} case{rows.length === 1 ? "" : "s"}
-            {rows.length !== totalCases && ` of ${totalCases}`} · sorted by what you have run least
-            recently
+            {rows.length !== totalCases && ` of ${totalCases}`}
           </p>
         </div>
         {isAdmin(user) && (
