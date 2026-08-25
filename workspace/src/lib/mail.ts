@@ -9,10 +9,18 @@ import nodemailer from "nodemailer";
  * are absent, sending reports a reason instead of throwing, and the caller
  * decides what to do about it.
  */
-const HOST = process.env.SMTP_HOST || "smtp.gmail.com";
+const HOST = (process.env.SMTP_HOST || "smtp.gmail.com").trim();
 const PORT = Number(process.env.SMTP_PORT || 465);
-const USER = process.env.SMTP_USER || "";
-const PASS = process.env.SMTP_PASS || "";
+const USER = (process.env.SMTP_USER || "").trim();
+
+/**
+ * Google shows an app password as four groups of four — "abcd efgh ijkl mnop"
+ * — and people paste what they are shown. The password itself has no spaces,
+ * so stripping whitespace turns the most likely cause of a 535 into a
+ * non-event. Trimming also catches the newline a terminal adds when the value
+ * was echoed into a dashboard field.
+ */
+const PASS = (process.env.SMTP_PASS || "").replace(/\s+/g, "");
 
 /** Where the contact form goes. */
 export const FEEDBACK_TO = process.env.FEEDBACK_TO || "casedeskadmin@gmail.com";

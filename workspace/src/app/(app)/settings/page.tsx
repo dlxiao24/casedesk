@@ -10,12 +10,23 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const user = await requireUser();
-  const [caseCount, sessionCount, phraseCount, stuckMessages] = await Promise.all([
+  const [caseCount, sessionCount, phraseCount, stuckMessages, lastFailure] = await Promise.all([
     db.case.count({ where: { ownerId: user.id } }),
     db.session.count({ where: { coachId: user.id } }),
     db.phrase.count({ where: { active: true } }),
     // Contact-form messages that were stored but never made it out.
     isAdmin(user) ? db.feedbackMessage.count({ where: { sentAt: null } }) : 0,
+    // The mail server's own words about the most recent failure. Having
+    // credentials set is not the same as them working, and the difference
+    // between "not configured" and "Gmail rejected the password" is the whole
+    // diagnosis — so show it rather than making someone read the database.
+    isAdmin(user)
+      ? db.feedbackMessage.findFirst({
+          where: { sendError: { not: null } },
+          orderBy: { createdAt: "desc" },
+          select: { sendError: true },
+        })
+      : null,
   ]);
 
   return (
@@ -52,23 +63,42 @@ export default async function SettingsPage() {
       {isAdmin(user) && (
         <section
           className={`rounded border p-3 ${
-            mailConfigured ? "border-rule bg-panel" : "border-warn/40 bg-warn/10"
+            mailConfigured && stuckMessages === 0
+              ? "border-rule bg-panel"
+              : "border-warn/40 bg-warn/10"
           }`}
         >
           <h2 className="text-sm text-ink">Contact form</h2>
           <p className="mt-1 text-sm text-muted">
             Messages go to <span className="text-ink">{FEEDBACK_TO}</span>.{" "}
             {mailConfigured
-              ? "Outgoing mail is configured."
+              ? "Credentials are set on the server."
               : "Outgoing mail is not configured, so messages are being stored and not sent. Set SMTP_USER and SMTP_PASS on the server — a Gmail address and an app password."}
           </p>
           {stuckMessages > 0 && (
             <p className="mt-1 text-sm text-warn">
-              {stuckMessages} message{stuckMessages === 1 ? "" : "s"} stored but never emailed.
-              {mailConfigured
-                ? " They arrived before mail worked; they are in the FeedbackMessage table."
-                : " They are safe in the FeedbackMessage table."}
+              {stuckMessages} message{stuckMessages === 1 ? "" : "s"} stored but never emailed —
+              they are safe in the FeedbackMessage table.
             </p>
+          )}
+          {lastFailure?.sendError && (
+            <div className="mt-2">
+              <p className="text-2xs uppercase tracking-wider text-faint">
+                What the mail server said, most recently
+              </p>
+              <pre className="mt-1 whitespace-pre-wrap break-words rounded border border-rule bg-paper p-2 text-2xs text-muted">
+                {lastFailure.sendError}
+              </pre>
+              {/* The one failure worth translating, because the fix is not
+                  obvious from the code and it is the common way to get here. */}
+              {lastFailure.sendError.includes("535") && (
+                <p className="mt-1 text-2xs text-faint">
+                  Google refuses an ordinary account password over SMTP. This needs an app
+                  password, generated at myaccount.google.com/apppasswords while signed in as the
+                  address in SMTP_USER, with 2-Step Verification switched on for that account.
+                </p>
+              )}
+            </div>
           )}
         </section>
       )}
