@@ -27,6 +27,21 @@ export const FEEDBACK_TO = process.env.FEEDBACK_TO || "casedeskadmin@gmail.com";
 
 export const mailConfigured = Boolean(USER && PASS);
 
+/**
+ * Enough to tell one credential from another without revealing either.
+ *
+ * A Google app password is sixteen characters, so the length alone says
+ * whether the value even looks like one — and it changes when the value does,
+ * which is the only way to tell "the new password is wrong" apart from "the
+ * deployment is still holding the old one". Never expose more than this: the
+ * password itself must not reach a page, a log, or a database row.
+ */
+export const credentialShape = {
+  user: USER,
+  passwordLength: PASS.length,
+  looksLikeAppPassword: PASS.length === 16,
+};
+
 export type MailResult = { ok: true } | { ok: false; error: string };
 
 export async function sendMail({

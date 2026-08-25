@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
 import { signOut } from "@/actions/auth";
 import { supabaseConfigured } from "@/lib/env";
-import { FEEDBACK_TO, mailConfigured } from "@/lib/mail";
+import { FEEDBACK_TO, credentialShape, mailConfigured } from "@/lib/mail";
 import { ProfileForm } from "./ProfileForm";
 
 export const dynamic = "force-dynamic";
@@ -81,6 +81,15 @@ export default async function SettingsPage() {
               they are safe in the FeedbackMessage table.
             </p>
           )}
+          {mailConfigured && (
+            <p className="mt-1 text-2xs text-faint">
+              Sending as <span className="text-muted">{credentialShape.user}</span> with a{" "}
+              {credentialShape.passwordLength}-character password.{" "}
+              {credentialShape.looksLikeAppPassword
+                ? "That is the right length for a Google app password."
+                : "A Google app password is 16 characters — this is not one."}
+            </p>
+          )}
           {lastFailure?.sendError && (
             <div className="mt-2">
               <p className="text-2xs uppercase tracking-wider text-faint">
@@ -120,9 +129,7 @@ export default async function SettingsPage() {
       <section className="flex items-center justify-between rounded border border-rule p-3">
         <div>
           <h2 className="text-sm text-ink">Signed in as {user.email}</h2>
-          <p className="text-2xs text-faint">
-            Signing out returns you to the library, which guests can read.
-          </p>
+          <p className="text-2xs text-faint">Signing out returns you to the landing page.</p>
         </div>
         {/* A server action, so the session cookie is cleared where it lives. */}
         <form action={signOut}>
