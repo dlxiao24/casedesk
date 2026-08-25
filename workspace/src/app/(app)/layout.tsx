@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { currentViewer } from "@/lib/viewer";
 import { ago } from "@/lib/format";
 import { NavLink } from "@/components/NavLink";
+import { ContactDialog } from "@/components/ContactDialog";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </>
           )}
           <div className="flex-1" />
+          {/* Left of whoever you are — the same place whether that is a name
+              or a pair of sign-in buttons. A guest's first impression is
+              worth hearing too, so they get it as well. */}
+          <ContactDialog defaultEmail={viewer.user?.email ?? ""} />
           {isGuest ? (
             <div className="flex items-center gap-2">
               <span className="chip border-rule text-faint">Guest</span>

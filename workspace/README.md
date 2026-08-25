@@ -53,6 +53,21 @@ npm run dev
 `db:seed` creates the first admin from `SEED_ADMIN_EMAIL`, loads 120 phrases into the phrase bank,
 and adds one demo case and candidate. Set `SEED_MINIMAL=1` to skip the demo content.
 
+### Outgoing mail
+
+The **Contact me** button in the header sends to `FEEDBACK_TO`
+(`casedeskadmin@gmail.com` by default) with the subject
+`Casedesk feedback - <the address they typed>`, and sets Reply-To to that address so
+replying reaches the sender. Set `SMTP_USER` and `SMTP_PASS` to a Gmail address and an
+app password from [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+(2-Step Verification must be on). This is separate from the SMTP that Supabase Auth uses
+for confirmation and reset mail, though the same app password works for both.
+
+Every message is written to `FeedbackMessage` before it is sent. If mail is not configured,
+or the account stops working, the row is still there with `sendError` explaining why — so
+nothing is lost while the credentials are sorted out. The form is open to guests, capped at
+five messages an hour per address and thirty an hour overall.
+
 ### Supabase Storage
 
 Create a **private** bucket named `casebooks` (or whatever you set `NEXT_PUBLIC_SUPABASE_BUCKET`

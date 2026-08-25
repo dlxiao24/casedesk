@@ -24,7 +24,29 @@ model User {
   casebooks  Casebook[]
   candidates  Candidate[] @relation("CandidateCreator")
   caseRatings CaseRating[]
+  feedback    FeedbackMessage[]
   invitesSent Invite[]    @relation("InviteSender")
+}
+
+/// A message from the contact form.
+///
+/// Kept as well as emailed. Mail is the fragile half of this feature — an app
+/// password gets revoked, a provider decides the login looks suspicious — and
+/// a message nobody can read afterwards is worse than one that arrives late.
+/// If sending fails the row is still here, with the reason on it.
+model FeedbackMessage {
+  id        String    @id @default(cuid())
+  /// The address the sender typed. Unverified, and not necessarily an account.
+  fromEmail String
+  body      String
+  /// Set when whoever wrote it happened to be signed in.
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sentAt    DateTime?
+  sendError String?
+  createdAt DateTime  @default(now())
+
+  @@index([createdAt])
 }
 
 enum Role {
