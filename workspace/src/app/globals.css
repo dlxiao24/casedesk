@@ -86,11 +86,40 @@ body {
   }
 }
 
+/* ---------- The landing page's one flourish ---------- */
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.6rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * Each direct child carries its own animation-delay, set inline, so the words
+ * arrive left to right as one sweep rather than all together.
+ *
+ * The `both` fill mode is doing the important work: it holds the start state
+ * through the delay, so the line does not flash into view whole and then
+ * animate. Children are inline-block because transforms do nothing to an
+ * inline box.
+ */
+.rise-in > * {
+  animation: rise-in 500ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    /* Delays too, or a staggered line would still trickle in for someone who
+       asked for no motion — instant is instant. */
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
