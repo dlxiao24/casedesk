@@ -1,15 +1,15 @@
 import { notFound, redirect } from "next/navigation";
 import type { Section } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireSessionAccess } from "@/lib/viewer";
 import { signedFileUrl } from "@/actions/casebooks";
 import { Runner } from "./Runner";
 
 export const dynamic = "force-dynamic";
 
 export default async function RunPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireUser();
   const { id } = await params;
+  const viewer = await requireSessionAccess(id);
 
   const session = await db.session.findUnique({
     where: { id },
@@ -92,6 +92,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
         kase.startPage ? { start: kase.startPage, end: kase.endPage ?? kase.startPage } : null
       }
       sections={sequence}
+      canEditCase={viewer.kind === "user"}
     />
   );
 }

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireSessionAccess } from "@/lib/viewer";
 import { clock } from "@/lib/format";
 import { WrapUp } from "./WrapUp";
 import { GenerateReport } from "./GenerateReport";
@@ -8,8 +8,8 @@ import { GenerateReport } from "./GenerateReport";
 export const dynamic = "force-dynamic";
 
 export default async function WrapPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser();
   const { id } = await params;
+  const viewer = await requireSessionAccess(id);
 
   const session = await db.session.findUnique({
     where: { id },
@@ -22,10 +22,14 @@ export default async function WrapPage({ params }: { params: Promise<{ id: strin
   });
   if (!session) notFound();
 
-  const mine = await db.coachCase.findUnique({
-    where: { userId_caseId: { userId: user.id, caseId: session.caseId } },
-    select: { personalNotes: true },
-  });
+  // A guest has no personal notes on a case, and never will.
+  const mine =
+    viewer.kind === "user"
+      ? await db.coachCase.findUnique({
+          where: { userId_caseId: { userId: viewer.user.id, caseId: session.caseId } },
+          select: { personalNotes: true },
+        })
+      : null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -54,10 +58,11 @@ export default async function WrapPage({ params }: { params: Promise<{ id: strin
         sessionId={session.id}
         caseId={session.caseId}
         locked={session.locked}
-        isOwner={session.case.ownerId === user.id}
+        isOwner={viewer.kind === "user" && session.case.ownerId === viewer.user.id}
         ownerName={session.case.owner.name}
         caseQuality={session.case.caseQuality}
         existingPersonalNotes={mine?.personalNotes ?? ""}
+        canKeepNotes={viewer.kind === "user"}
         scores={Object.fromEntries(session.scores.map((s) => [s.dimension, s.value]))}
         takeaways={session.takeaways.map((t) => ({ kind: t.kind, rank: t.rank, text: t.text }))}
         overallNote={session.overallNote ?? ""}

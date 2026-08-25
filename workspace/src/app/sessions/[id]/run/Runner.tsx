@@ -56,6 +56,8 @@ export function Runner({
   fileUrl,
   casePages,
   sections: initialSections,
+  /** A guest may run a case but never edit the library it came from. */
+  canEditCase,
 }: {
   sessionId: string;
   caseId: string;
@@ -66,6 +68,7 @@ export function Runner({
   fileUrl: string | null;
   casePages: { start: number; end: number } | null;
   sections: RunnerStep[];
+  canEditCase: boolean;
 }) {
   const [sections, setSections] = useState(initialSections);
   const [index, setIndex] = useState(0);
@@ -328,9 +331,11 @@ export function Runner({
         <button className="btn btn-quiet" onClick={() => setPaletteOpen(true)}>
           Jump ⌘K
         </button>
-        <button className="btn btn-quiet" onClick={() => setAdding(true)}>
-          Add section
-        </button>
+        {canEditCase && (
+          <button className="btn btn-quiet" onClick={() => setAdding(true)}>
+            Add section
+          </button>
+        )}
         {/* Its own tab, so it can be screenshared or printed without the rest of
             the runner — and so nothing here can scroll a solution into view. */}
         <a

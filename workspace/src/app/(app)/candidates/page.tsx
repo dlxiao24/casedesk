@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { candidateScope } from "@/lib/candidateAccess";
+import { REAL_CANDIDATES } from "@/lib/viewer";
 import { ago } from "@/lib/format";
 import { NewCandidateInline } from "./NewCandidateInline";
 import { CandidateRowActions } from "./CandidateRowActions";
@@ -18,7 +19,7 @@ export default async function CandidatesPage({
   const showArchived = archived === "1";
 
   const candidates = await db.candidate.findMany({
-    where: { archived: showArchived, ...candidateScope(user) },
+    where: { archived: showArchived, ...REAL_CANDIDATES, ...candidateScope(user) },
     orderBy: { name: "asc" },
     include: {
       _count: { select: { sessions: true } },

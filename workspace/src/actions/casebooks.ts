@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import type { SectionKind } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAdmin, requireUser } from "@/lib/auth";
+import { currentViewer } from "@/lib/viewer";
+import { guestReadableFileKeys } from "@/lib/library";
 import { SUPABASE_BUCKET, STORAGE_QUOTA_BYTES } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -282,7 +284,12 @@ export async function deleteCasebook(casebookId: string, typedTitle: string) {
  * falls back to typed section text.
  */
 export async function signedFileUrl(key: string, expiresInSeconds = 60 * 60) {
-  await requireUser();
+  const viewer = await currentViewer();
+  if (viewer.kind === "guest") {
+    const allowed = await guestReadableFileKeys();
+    if (!allowed.includes(key)) return null;
+  }
+
   const supabase = await createClient();
   if (!supabase || !key) return null;
 

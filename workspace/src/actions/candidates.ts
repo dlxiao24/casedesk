@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { candidateScope, canSeeCandidate } from "@/lib/candidateAccess";
+import { REAL_CANDIDATES } from "@/lib/viewer";
 
 const schema = z.object({
   name: z.string().trim().min(1, "A candidate needs a name."),
@@ -87,6 +88,7 @@ export async function searchCandidates(query: string) {
   return db.candidate.findMany({
     where: {
       archived: false,
+      ...REAL_CANDIDATES,
       ...candidateScope(user),
       ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
     },

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { clock, shortDate } from "@/lib/format";
 import { HIDDEN_CANDIDATE_LABEL, canSeeCandidate } from "@/lib/candidateAccess";
+import { REAL_SESSIONS } from "@/lib/viewer";
 import { SessionRowActions } from "./SessionRowActions";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,8 @@ export default async function SessionsPage({
   const onlyMine = mine === "1";
 
   const sessions = await db.session.findMany({
-    where: { archived: showArchived, ...(onlyMine ? { coachId: user.id } : {}) },
+    // REAL_SESSIONS keeps guests' demo runs out of the club's record.
+    where: { archived: showArchived, ...REAL_SESSIONS, ...(onlyMine ? { coachId: user.id } : {}) },
     orderBy: { startedAt: "desc" },
     take: 200,
     include: {

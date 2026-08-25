@@ -22,7 +22,7 @@ seeded phrase bank and the notes the coach starred during the session.
 | Styling | Tailwind CSS |
 | DB | Supabase Postgres (free tier) |
 | ORM | Prisma 6 |
-| Auth | Supabase Auth, magic link |
+| Auth | Supabase Auth, email and password |
 | Storage | Supabase Storage |
 | PDF | pdf.js via react-pdf, entirely in the browser |
 | Charts | Recharts |
@@ -58,6 +58,23 @@ and adds one demo case and candidate. Set `SEED_MINIMAL=1` to skip the demo cont
 Create a **private** bucket named `casebooks` (or whatever you set `NEXT_PUBLIC_SUPABASE_BUCKET`
 to). Casebook files are uploaded from the browser and read back through short-lived signed URLs, so
 the bucket should not be public.
+
+### Accounts and access
+
+Three levels, and only one of them can be self-served.
+
+- **Guest** — nobody is signed in. Reads the first few cases alphabetically, blurred fiction where
+  the rest would be, and can run one against the shared "Sample User" candidate. The session is
+  tied to a cookie, so it is theirs alone and never appears in a coach's lists.
+- **Coach** — anyone who confirms an email address. Reads the whole library, runs cases against
+  candidates they add, and keeps their own notes and readiness. Cannot add or split cases.
+- **Admin** — granted by another admin on Settings → Coaches, and no other way. Adds casebooks and
+  cases, sees every candidate, and permanently deletes archived records.
+
+Sign-up needs working email: Supabase's built-in sender only delivers to members of the Supabase
+org, so configure custom SMTP under Project Settings → Authentication before inviting anyone real.
+Confirmation and password-reset links both land on `/auth/callback`, which must be listed under
+Authentication → URL Configuration.
 
 ### Running without Supabase
 

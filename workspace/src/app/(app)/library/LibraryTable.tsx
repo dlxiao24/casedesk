@@ -9,6 +9,7 @@ import { CASE_ATTRIBUTES, CASE_TYPES, READINESS } from "@/lib/constants";
 import { ago } from "@/lib/format";
 import { deleteCase } from "@/actions/cases";
 import { DeleteForever } from "@/components/DeleteForever";
+import { placeholderRow } from "@/lib/guest";
 
 export type Row = {
   id: string;
@@ -97,7 +98,18 @@ function cellValue(row: Row, key: SortKey): string | number | null {
 }
 
 /** The useful information is in the rows, not in stat cards above them (§11). */
-export function LibraryTable({ rows, isAdmin }: { rows: Row[]; isAdmin: boolean }) {
+export function LibraryTable({
+  rows,
+  isAdmin,
+  /** Rows the viewer may not have: drawn as blurred fiction, counted honestly. */
+  lockedCount = 0,
+  isGuest = false,
+}: {
+  rows: Row[];
+  isAdmin: boolean;
+  lockedCount?: number;
+  isGuest?: boolean;
+}) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [sort, setSort] = useState<Sort | null>(null);
 
@@ -150,6 +162,10 @@ export function LibraryTable({ rows, isAdmin }: { rows: Row[]; isAdmin: boolean 
               Default order
             </button>
           </>
+        ) : isGuest ? (
+          <span>
+            {rows.length} of {rows.length + lockedCount} cases, in alphabetical order.
+          </span>
         ) : (
           <span>Sorted by what you have run least recently.</span>
         )}
@@ -268,10 +284,82 @@ export function LibraryTable({ rows, isAdmin }: { rows: Row[]; isAdmin: boolean 
                 </Fragment>
               );
             })}
+            {Array.from({ length: lockedCount }, (_, i) => (
+              <LockedRow key={i} index={i} />
+            ))}
           </tbody>
         </table>
       </div>
+
+      {lockedCount > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded border border-rule bg-panel px-3 py-2">
+          <span className="text-sm text-muted">
+            {lockedCount} more {lockedCount === 1 ? "case is" : "cases are"} in the library.
+          </span>
+          <Link href="/signup" className="btn btn-primary py-0.5">
+            Create a free account
+          </Link>
+          <Link href="/login" className="text-2xs text-faint hover:text-accent">
+            or sign in
+          </Link>
+        </div>
+      )}
     </div>
+  );
+}
+
+/**
+ * A case the viewer may not have.
+ *
+ * The text is invented. A blur is paint, not a lock — whatever is under it
+ * still travels to the browser and sits in the page source — so the row is
+ * given fiction to wear rather than a real title. Hidden from assistive
+ * technology for the same reason it is hidden from the eye: there is nothing
+ * here to read.
+ */
+function LockedRow({ index }: { index: number }) {
+  const fake = placeholderRow(index);
+
+  return (
+    <tr aria-hidden className="border-b border-rule/60 select-none">
+      <td className="py-2 pl-2" />
+      <td className="px-3 py-2">
+        <div className="blur-[3px]">
+          <div className="text-ink">{fake.title}</div>
+          <div className="text-2xs text-faint">{fake.source}</div>
+        </div>
+      </td>
+      <td className="px-3 py-2">
+        <div className="text-muted blur-[3px]">{fake.caseType}</div>
+      </td>
+      <td className="px-3 py-2">
+        <div className="blur-[3px]">
+          <ScoreBar value={fake.overallDifficulty} />
+        </div>
+      </td>
+      <td className="px-3 py-2">
+        <div className="blur-[3px]">
+          <ScoreBar value={fake.quantIntensity} size="xs" />
+        </div>
+      </td>
+      <td className="px-3 py-2">
+        <div className="blur-[3px]">
+          <ScoreBar value={fake.creativityLoad} size="xs" />
+        </div>
+      </td>
+      <td className="px-3 py-2">
+        <div className="blur-[3px]">
+          <ScoreBar value={fake.caseQuality} size="xs" tone="good" />
+        </div>
+      </td>
+      <td className="px-3 py-2">
+        <span className="chip border-rule text-faint blur-[3px]">Unread</span>
+      </td>
+      <td className="tabular px-3 py-2 text-right text-muted blur-[3px]">0</td>
+      <td className="px-3 py-2 text-right">
+        <span className="text-2xs text-faint">Locked</span>
+      </td>
+    </tr>
   );
 }
 

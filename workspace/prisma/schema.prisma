@@ -22,8 +22,8 @@ model User {
   ownedCases Case[]
   coachCases CoachCase[]
   casebooks  Casebook[]
-  invitesSent Invite[]   @relation("InviteSender")
   candidates  Candidate[] @relation("CandidateCreator")
+  invitesSent Invite[]    @relation("InviteSender")
 }
 
 enum Role {
@@ -31,8 +31,11 @@ enum Role {
   COACH
 }
 
-/// Invite-only access (§2). An email must have a pending or accepted invite
-/// before its magic link is honoured.
+/// Retired. Sign-up is open now — anyone who confirms an email address gets a
+/// coach seat, and ADMIN is granted by an admin rather than pre-assigned here.
+/// Nothing reads this table; it is still declared so that the schema and the
+/// database agree. Drop it with:
+///   npx prisma db push --accept-data-loss
 model Invite {
   id         String    @id @default(cuid())
   email      String    @unique
@@ -236,6 +239,11 @@ model Session {
   candidate   Candidate @relation(fields: [candidateId], references: [id])
   coachId     String
   coach       User      @relation(fields: [coachId], references: [id])
+  /// Set when a signed-out visitor ran this session. It holds the random id
+  /// from their browser cookie, which is the only thing that makes the session
+  /// theirs — there is no account to hang it on. Coaches' lists exclude any
+  /// session carrying one.
+  guestKey    String?
 
   status       SessionStatus @default(IN_PROGRESS)
   startedAt    DateTime      @default(now())
@@ -269,6 +277,7 @@ model Session {
   @@index([candidateId])
   @@index([caseId])
   @@index([coachId, status])
+  @@index([guestKey])
 }
 
 enum SessionStatus {

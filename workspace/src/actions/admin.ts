@@ -1,48 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 import type { Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAdmin, requireUser } from "@/lib/auth";
-
-const email = z.string().trim().toLowerCase().email("That does not look like an email address.");
+import { GUEST_USER_ID } from "@/lib/guest";
 
 /**
- * Invite-only (§2). An invite is a row, not an email — the coach signs in with
- * a magic link and the invite is redeemed on first login. No public signup.
+ * Sign-up is open and everyone lands as a COACH. Admin is the one thing that
+ * cannot be self-served: an existing admin grants it here, and nowhere else.
  */
-export async function inviteCoach(_prev: { error?: string; ok?: string } | null, form: FormData) {
-  const admin = await requireAdmin();
-  const parsed = email.safeParse(form.get("email") ?? "");
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
-
-  const role = (String(form.get("role") ?? "COACH") === "ADMIN" ? "ADMIN" : "COACH") as Role;
-
-  const existingUser = await db.user.findUnique({ where: { email: parsed.data } });
-  if (existingUser) return { error: `${parsed.data} already has an account.` };
-
-  await db.invite.upsert({
-    where: { email: parsed.data },
-    create: { email: parsed.data, role, invitedById: admin.id },
-    update: { role, revokedAt: null, invitedById: admin.id },
-  });
-  revalidatePath("/settings/coaches");
-  return {
-    ok: `Invited ${parsed.data}. They can now sign in at the login page with that address — no email is sent from here.`,
-  };
-}
-
-export async function revokeInvite(inviteId: string) {
-  await requireAdmin();
-  await db.invite.update({ where: { id: inviteId }, data: { revokedAt: new Date() } });
-  revalidatePath("/settings/coaches");
-  return { error: undefined };
-}
-
 export async function setUserRole(userId: string, role: Role) {
   const admin = await requireAdmin();
   if (admin.id === userId) return { error: "You cannot change your own role." };
+  if (userId === GUEST_USER_ID) return { error: "The guest account has no role to change." };
 
   await db.user.update({ where: { id: userId }, data: { role } });
   revalidatePath("/settings/coaches");

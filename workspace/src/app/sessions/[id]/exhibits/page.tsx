@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireSessionAccess } from "@/lib/viewer";
 import { signedFileUrl } from "@/actions/casebooks";
 import { isCandidateSafeKind } from "@/lib/constants";
 import { ExhibitView } from "./ExhibitView";
@@ -17,8 +17,8 @@ export const dynamic = "force-dynamic";
  * is nothing on screen to accidentally scroll into view.
  */
 export default async function ExhibitsPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireUser();
   const { id } = await params;
+  await requireSessionAccess(id);
 
   const session = await db.session.findUnique({
     where: { id },

@@ -1,7 +1,15 @@
 import Link from "next/link";
-import { isAdmin, requireUser } from "@/lib/auth";
+import { isAdmin } from "@/lib/auth";
+import { currentViewer } from "@/lib/viewer";
 import { db } from "@/lib/db";
-import { knownFirms, knownIndustries, libraryRows, parseFilters } from "@/lib/library";
+import {
+  guestLibrary,
+  knownFirms,
+  knownIndustries,
+  libraryRows,
+  parseFilters,
+} from "@/lib/library";
+import { SAMPLE_CANDIDATE_NAME } from "@/lib/guest";
 import { LibraryFilterBar } from "./LibraryFilterBar";
 import { LibraryTable } from "./LibraryTable";
 
@@ -12,7 +20,10 @@ export default async function LibraryPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const user = await requireUser();
+  const viewer = await currentViewer();
+  if (viewer.kind === "guest") return <GuestLibrary />;
+  const user = viewer.user;
+
   const params = await searchParams;
   const filters = parseFilters(params);
 
@@ -70,8 +81,39 @@ export default async function LibraryPage({
   );
 }
 
+/**
+ * What a signed-out visitor gets: a fixed handful of cases, no filters, and
+ * the rest of the shelf visible as shape only. No search box either — see
+ * `guestLibrary`, where the reasoning lives.
+ */
+async function GuestLibrary() {
+  const { rows, lockedCount, total } = await guestLibrary();
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-base text-ink">Library</h1>
+        <p className="text-sm text-muted">
+          {total === 0 ? (
+            "No cases in the library yet."
+          ) : (
+            <>
+              You are browsing as a guest, so {rows.length} of these {total} cases are open to read.
+              You can run any of them against {SAMPLE_CANDIDATE_NAME} to see how a session works.
+            </>
+          )}
+        </p>
+      </div>
+
+      {rows.length > 0 && (
+        <LibraryTable rows={rows.map(serialize)} isAdmin={false} lockedCount={lockedCount} isGuest />
+      )}
+    </div>
+  );
+}
+
 /** Server components can't hand class instances to the client. */
-function serialize(row: Awaited<ReturnType<typeof libraryRows>>[number]) {
+function serialize(row: Awaited<ReturnType<typeof guestLibrary>>["rows"][number]) {
   return {
     id: row.id,
     title: row.title,

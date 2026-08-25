@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireSessionAccess } from "@/lib/viewer";
 import { loadReportModel } from "@/lib/loadReport";
 import { reportToMarkdown } from "@/lib/report";
 import { Report } from "@/components/Report";
@@ -15,9 +15,9 @@ export default async function ReportPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ options?: string }>;
 }) {
-  await requireUser();
   const { id } = await params;
   const { options } = await searchParams;
+  const viewer = await requireSessionAccess(id);
 
   const [model, session] = await Promise.all([
     loadReportModel({ id }),
@@ -54,6 +54,7 @@ export default async function ReportPage({
           hideSource: session.hideSource,
         }}
         shareToken={session.shareToken}
+        isCoach={viewer.kind === "user"}
         candidateId={session.candidate.id}
         markdown={reportToMarkdown(model)}
         /* Arriving from "Generate report" opens the dialog straight away. */

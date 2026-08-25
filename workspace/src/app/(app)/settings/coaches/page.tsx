@@ -1,35 +1,32 @@
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { ago } from "@/lib/format";
-import { InviteForm } from "./InviteForm";
-import { CoachRow, InviteRow } from "./Rows";
+import { REAL_USERS } from "@/lib/viewer";
+import { CoachRow } from "./Rows";
 
 export const dynamic = "force-dynamic";
 
 export default async function CoachesPage() {
   const admin = await requireAdmin();
-  const [users, invites] = await Promise.all([
-    db.user.findMany({ orderBy: { createdAt: "asc" } }),
-    db.invite.findMany({
-      where: { acceptedAt: null },
-      orderBy: { createdAt: "desc" },
-      include: { invitedBy: { select: { name: true } } },
-    }),
-  ]);
+  const users = await db.user.findMany({
+    where: REAL_USERS,
+    orderBy: { createdAt: "asc" },
+  });
+
+  const admins = users.filter((u) => u.role === "ADMIN").length;
 
   return (
     <div className="max-w-2xl space-y-6">
       <div>
         <h1 className="text-base text-ink">Coaches</h1>
         <p className="text-sm text-muted">
-          Invite-only. There is no signup page — an email can only sign in once it has an invite.
+          Anyone can make an account, and everyone starts as a coach. Admin is granted here and
+          nowhere else — {admins} {admins === 1 ? "person has" : "people have"} it.
         </p>
       </div>
 
-      <InviteForm />
-
       <section>
-        <h2 className="text-sm text-ink">Active</h2>
+        <h2 className="text-sm text-ink">{users.length} accounts</h2>
         <ul className="mt-2 divide-y divide-rule rounded border border-rule">
           {users.map((u) => (
             <CoachRow
@@ -43,26 +40,11 @@ export default async function CoachesPage() {
             />
           ))}
         </ul>
+        <p className="mt-2 text-2xs text-faint">
+          An admin can add and split cases, see every candidate, and permanently delete archived
+          records. A coach runs cases and keeps their own candidates.
+        </p>
       </section>
-
-      {invites.length > 0 && (
-        <section>
-          <h2 className="text-sm text-ink">Pending invites</h2>
-          <ul className="mt-2 divide-y divide-rule rounded border border-rule">
-            {invites.map((i) => (
-              <InviteRow
-                key={i.id}
-                id={i.id}
-                email={i.email}
-                role={i.role}
-                revoked={Boolean(i.revokedAt)}
-                by={i.invitedBy.name}
-                when={ago(i.createdAt)}
-              />
-            ))}
-          </ul>
-        </section>
-      )}
     </div>
   );
 }

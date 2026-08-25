@@ -1,39 +1,17 @@
 "use server";
 
-import { z } from "zod";
-import { db } from "@/lib/db";
-
-const emailSchema = z.string().trim().toLowerCase().email();
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 
 /**
- * Is this address allowed to receive a sign-in link?
+ * There was no way to sign out while the only way in was a magic link — the
+ * link *was* the session. With passwords there has to be a door out.
  *
- * Checked before Supabase is asked to send anything, for two reasons. It keeps
- * uninvited addresses from consuming the project's hourly email allowance —
- * which is small, and shared with every real coach trying to sign in — and it
- * lets a typo say so immediately instead of after a wait for a mail that never
- * arrives.
- *
- * This does reveal whether an address has been invited. For an invite-only club
- * tool that is the right trade: the alternative is a coach staring at "check
- * your inbox" for a link that was never sent.
+ * Signing out lands on the library rather than the login page: the library is
+ * readable to guests, so it is a place to be rather than a wall.
  */
-export async function canRequestSignInLink(rawEmail: string) {
-  const parsed = emailSchema.safeParse(rawEmail);
-  if (!parsed.success) return { ok: false as const, error: "That does not look like an email address." };
-
-  const email = parsed.data;
-
-  const user = await db.user.findUnique({ where: { email } });
-  if (user) return { ok: true as const };
-
-  const invite = await db.invite.findUnique({ where: { email } });
-  if (!invite || invite.revokedAt) {
-    return {
-      ok: false as const,
-      error: "That email has not been invited. Ask a Case Desk admin to invite you first.",
-    };
-  }
-
-  return { ok: true as const };
+export async function signOut() {
+  const supabase = await createClient();
+  if (supabase) await supabase.auth.signOut();
+  redirect("/library");
 }

@@ -3,17 +3,22 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-/** Magic-link landing. Exchanges the code for a session cookie, then goes home. */
+/**
+ * Where emailed links land — sign-up confirmations and password resets alike.
+ * Exchanges the code for a session cookie, then goes wherever `next` says.
+ */
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const next = url.searchParams.get("next") ?? "/library";
+  // Only same-site destinations: `next` arrives from a link in an email.
+  const destination = next.startsWith("/") && !next.startsWith("//") ? next : "/library";
 
   if (code) {
     const supabase = await createClient();
     if (supabase) {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
-      if (!error) return NextResponse.redirect(new URL(next, url.origin));
+      if (!error) return NextResponse.redirect(new URL(destination, url.origin));
     }
   }
   return NextResponse.redirect(new URL("/login?error=link", url.origin));

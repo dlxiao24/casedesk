@@ -18,6 +18,11 @@ export function ReportToolbar({
   candidateId,
   markdown,
   openOptionsOnLoad = false,
+  /**
+   * A guest reaches this page for their own practice run, and nothing beyond
+   * it: no candidate record to go back to, and no public link out of a demo.
+   */
+  isCoach,
 }: {
   sessionId: string;
   locked: boolean;
@@ -26,6 +31,7 @@ export function ReportToolbar({
   candidateId: string;
   markdown: string;
   openOptionsOnLoad?: boolean;
+  isCoach: boolean;
 }) {
   const router = useRouter();
   const [, start] = useTransition();
@@ -49,9 +55,14 @@ export function ReportToolbar({
   return (
     <div className="no-print sticky top-0 z-10 border-b border-neutral-300 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-[46rem] flex-wrap items-center gap-2 px-4 py-2 text-sm text-neutral-700">
-        <Link href={`/candidates/${candidateId}`} className="text-neutral-500 hover:text-neutral-900">
-          ← Candidate
-        </Link>
+        {isCoach && (
+          <Link
+            href={`/candidates/${candidateId}`}
+            className="text-neutral-500 hover:text-neutral-900"
+          >
+            ← Candidate
+          </Link>
+        )}
         <span className="flex-1" />
 
         <button
@@ -90,7 +101,7 @@ export function ReportToolbar({
           Print / save PDF
         </button>
 
-        {link ? (
+        {!isCoach ? null : link ? (
           <span className="flex items-center gap-1.5">
             <input
               readOnly

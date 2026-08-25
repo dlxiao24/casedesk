@@ -6,23 +6,80 @@ import { redirect } from "next/navigation";
 import type { Dimension, SectionKind, TakeawayKind } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { currentViewer, ensureGuestRecords, requireGuestKey } from "@/lib/viewer";
+import { GUEST_USER_ID, SAMPLE_CANDIDATE_ID } from "@/lib/guest";
+import { guestVisibleCaseIds } from "@/lib/library";
 import { draftTakeaways, extractStarred } from "@/lib/draft";
 
-/** Guard: a shared session is read-only until explicitly reopened (§8.1). */
-async function assertUnlocked(sessionId: string) {
-  const s = await db.session.findUniqueOrThrow({
-    where: { id: sessionId },
-    select: { locked: true },
-  });
-  if (s.locked) throw new Error("This session is locked. Reopen it to make changes.");
+/**
+ * May whoever is asking write to this session?
+ *
+ * A coach owns the sessions they ran and an admin reaches all of them; a guest
+ * owns whatever their cookie started, and nothing else. Every write goes
+ * through here, and a locked session (§8.1) refuses them all until reopened.
+ *
+ * Most of these actions used to take any signed-in coach's word for it, which
+ * was survivable while every account belonged to a club member. It stops being
+ * survivable the moment a stranger can open the runner, so the ownership rule
+ * that saveSectionNote already applied is now applied everywhere.
+ */
+async function inspectSession(sessionId: string, { coachOnly = false } = {}) {
+  const [viewer, session] = await Promise.all([
+    currentViewer(),
+    db.session.findUniqueOrThrow({
+      where: { id: sessionId },
+      select: { locked: true, coachId: true, guestKey: true, caseId: true },
+    }),
+  ]);
+
+  const mine =
+    viewer.kind === "user"
+      ? session.guestKey === null &&
+        (session.coachId === viewer.user.id || viewer.user.role === "ADMIN")
+      : !coachOnly && Boolean(viewer.guestKey) && session.guestKey === viewer.guestKey;
+
+  return { viewer, session, mine, locked: session.locked };
+}
+
+/** Ownership only. For the handful of actions whose whole job is the lock. */
+async function assertSessionOwner(sessionId: string, options?: { coachOnly?: boolean }) {
+  const result = await inspectSession(sessionId, options);
+  if (!result.mine) throw new Error("That session is not yours to change.");
+  return result;
+}
+
+/** Ownership and an unlocked session: the ordinary case. */
+async function assertCanWriteSession(sessionId: string, options?: { coachOnly?: boolean }) {
+  const result = await assertSessionOwner(sessionId, options);
+  if (result.locked) throw new Error("This session is locked. Reopen it to make changes.");
+  return result;
 }
 
 export async function startSession(caseId: string, candidateId: string) {
-  const user = await requireUser();
+  const viewer = await currentViewer();
+
+  if (viewer.kind === "guest") {
+    // A guest may only run what the library actually showed them, and only
+    // against the one shared practice candidate. Both are re-checked here
+    // rather than trusted from the form.
+    const open = await guestVisibleCaseIds();
+    if (!open.includes(caseId)) redirect("/signup");
+
+    const guestKey = await requireGuestKey();
+    await ensureGuestRecords();
+    const session = await db.session.create({
+      data: { caseId, candidateId: SAMPLE_CANDIDATE_ID, coachId: GUEST_USER_ID, guestKey },
+    });
+    redirect(`/sessions/${session.id}/run`);
+  }
+
+  const user = viewer.user;
 
   // A case with no sections is still runnable (§4.4); give it somewhere to
   // write, and point it at the whole case's pages so the runner shows the
-  // casebook rather than an empty pane.
+  // casebook rather than an empty pane. Guests never reach this: the cases
+  // offered to them are filtered to ones already sectioned, so a visitor
+  // cannot cause a write to the library.
   const sectionCount = await db.section.count({ where: { caseId } });
   if (sectionCount === 0) {
     const kase = await db.case.findUniqueOrThrow({
@@ -67,15 +124,9 @@ export async function saveSectionNote(input: {
   feedback?: string;
   secondsSpent?: number;
 }) {
-  const user = await requireUser();
-  const session = await db.session.findUniqueOrThrow({
-    where: { id: input.sessionId },
-    select: { locked: true, coachId: true },
-  });
-  if (session.locked) return { ok: false as const, reason: "locked" as const };
-  if (session.coachId !== user.id && user.role !== "ADMIN") {
-    return { ok: false as const, reason: "forbidden" as const };
-  }
+  const { mine, locked } = await inspectSession(input.sessionId);
+  if (!mine) return { ok: false as const, reason: "forbidden" as const };
+  if (locked) return { ok: false as const, reason: "locked" as const };
 
   const data = {
     ...(input.whatWasSaid !== undefined ? { whatWasSaid: input.whatWasSaid } : {}),
@@ -98,11 +149,8 @@ export async function saveSectionNote(input: {
 }
 
 export async function saveElapsed(sessionId: string, totalSeconds: number) {
-  const session = await db.session.findUniqueOrThrow({
-    where: { id: sessionId },
-    select: { locked: true },
-  });
-  if (session.locked) return { ok: false as const };
+  const { mine, locked } = await inspectSession(sessionId);
+  if (!mine || locked) return { ok: false as const };
   await db.session.update({ where: { id: sessionId }, data: { totalSeconds } });
   return { ok: true as const };
 }
@@ -129,8 +177,7 @@ export async function addSection(caseId: string, kind: SectionKind, label: strin
 }
 
 export async function endSession(sessionId: string, totalSeconds: number) {
-  const user = await requireUser();
-  const session = await db.session.findUniqueOrThrow({ where: { id: sessionId } });
+  const { viewer, session } = await assertSessionOwner(sessionId);
   if (session.locked) redirect(`/sessions/${sessionId}/wrap`);
 
   await db.session.update({
@@ -138,25 +185,27 @@ export async function endSession(sessionId: string, totalSeconds: number) {
     data: { status: "COMPLETE", endedAt: new Date(), totalSeconds },
   });
 
-  // Readiness auto-advance on delivery (§5).
-  await db.coachCase.upsert({
-    where: { userId_caseId: { userId: user.id, caseId: session.caseId } },
-    create: {
-      userId: user.id,
-      caseId: session.caseId,
-      state: "DELIVERED",
-      lastDeliveredAt: new Date(),
-    },
-    update: { state: "DELIVERED", lastDeliveredAt: new Date() },
-  });
+  // Readiness auto-advance on delivery (§5). A guest has no readiness to
+  // advance, and nothing a visitor does should touch a coach's library.
+  if (viewer.kind === "user") {
+    await db.coachCase.upsert({
+      where: { userId_caseId: { userId: viewer.user.id, caseId: session.caseId } },
+      create: {
+        userId: viewer.user.id,
+        caseId: session.caseId,
+        state: "DELIVERED",
+        lastDeliveredAt: new Date(),
+      },
+      update: { state: "DELIVERED", lastDeliveredAt: new Date() },
+    });
+  }
 
   revalidatePath("/library");
   redirect(`/sessions/${sessionId}/wrap`);
 }
 
 export async function setScore(sessionId: string, dimension: Dimension, value: number | null) {
-  await requireUser();
-  await assertUnlocked(sessionId);
+  await assertCanWriteSession(sessionId);
 
   if (value === null) {
     await db.score.deleteMany({ where: { sessionId, dimension } });
@@ -176,8 +225,7 @@ export async function setTakeaway(
   rank: number,
   text: string,
 ) {
-  await requireUser();
-  await assertUnlocked(sessionId);
+  await assertCanWriteSession(sessionId);
 
   const trimmed = text.trim();
   if (!trimmed) {
@@ -193,8 +241,7 @@ export async function setTakeaway(
 }
 
 export async function setOverallNote(sessionId: string, overallNote: string) {
-  await requireUser();
-  await assertUnlocked(sessionId);
+  await assertCanWriteSession(sessionId);
   await db.session.update({ where: { id: sessionId }, data: { overallNote } });
   return { ok: true as const };
 }
@@ -210,7 +257,7 @@ export async function setReportOptions(
     hideSource?: boolean;
   },
 ) {
-  await requireUser();
+  await assertCanWriteSession(sessionId);
   await db.session.update({ where: { id: sessionId }, data: options });
   revalidatePath(`/sessions/${sessionId}/report`);
   return { ok: true as const };
@@ -218,8 +265,7 @@ export async function setReportOptions(
 
 /** §7.1 — deterministic, phrase-bank driven. No LLM, no network, no cost. */
 export async function draftForSession(sessionId: string) {
-  await requireUser();
-  await assertUnlocked(sessionId);
+  await assertCanWriteSession(sessionId);
 
   const [scores, phrases, notes] = await Promise.all([
     db.score.findMany({ where: { sessionId } }),
@@ -269,7 +315,7 @@ export async function draftForSession(sessionId: string) {
 
 /** Sharing locks the session: printing, copying markdown, or minting a link. */
 export async function markShared(sessionId: string) {
-  await requireUser();
+  await assertSessionOwner(sessionId);
   const session = await db.session.findUniqueOrThrow({ where: { id: sessionId } });
   if (session.locked) return { ok: true as const };
 
@@ -287,7 +333,7 @@ export async function markShared(sessionId: string) {
 }
 
 export async function createShareLink(sessionId: string) {
-  await requireUser();
+  await assertSessionOwner(sessionId, { coachOnly: true });
   const token = randomBytes(24).toString("base64url");
   await db.session.update({
     where: { id: sessionId },
@@ -303,7 +349,7 @@ export async function createShareLink(sessionId: string) {
 }
 
 export async function revokeShareLink(sessionId: string) {
-  await requireUser();
+  await assertSessionOwner(sessionId, { coachOnly: true });
   await db.session.update({ where: { id: sessionId }, data: { shareToken: null } });
   revalidatePath(`/sessions/${sessionId}/report`);
   return { ok: true as const };
@@ -311,7 +357,9 @@ export async function revokeShareLink(sessionId: string) {
 
 /** Explicit, one-line confirm in the UI. Stamps the report "Revised". */
 export async function reopenSession(sessionId: string) {
-  await requireUser();
+  // Not coach-only: unlocking your own session is not a club matter, and a
+  // guest who printed their practice report should be able to keep editing it.
+  await assertSessionOwner(sessionId);
   await db.session.update({
     where: { id: sessionId },
     data: { locked: false, reopenedAt: new Date() },
@@ -322,14 +370,14 @@ export async function reopenSession(sessionId: string) {
 }
 
 export async function setSessionArchived(sessionId: string, archived: boolean) {
-  await requireUser();
+  await assertSessionOwner(sessionId, { coachOnly: true });
   await db.session.update({ where: { id: sessionId }, data: { archived } });
   revalidatePath("/sessions");
   return { ok: true as const };
 }
 
 export async function abandonSession(sessionId: string) {
-  await requireUser();
+  await assertSessionOwner(sessionId, { coachOnly: true });
   await db.session.update({ where: { id: sessionId }, data: { status: "ABANDONED" } });
   revalidatePath("/sessions");
   redirect("/sessions");
@@ -343,11 +391,7 @@ export async function abandonSession(sessionId: string) {
  * though the session is closed out as abandoned.
  */
 export async function exitSession(sessionId: string, totalSeconds: number) {
-  await requireUser();
-  const session = await db.session.findUniqueOrThrow({
-    where: { id: sessionId },
-    select: { locked: true },
-  });
+  const { session } = await assertSessionOwner(sessionId);
   if (!session.locked) {
     await db.session.update({
       where: { id: sessionId },

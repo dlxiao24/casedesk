@@ -1,21 +1,38 @@
 import Link from "next/link";
 import Image from "next/image";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { currentViewer } from "@/lib/viewer";
 import { ago } from "@/lib/format";
 import { NavLink } from "@/components/NavLink";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * The shell around the signed-in app — and around the guest view of the
+ * library, which is the one page inside it a signed-out visitor may reach.
+ * Every other page in this group calls `requireUser` for itself, so the
+ * layout can afford to be generous.
+ */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const user = await requireUser();
+  const viewer = await currentViewer();
+  const isGuest = viewer.kind === "guest";
 
-  // §6.4 — an in-progress session survives a closed tab.
-  const open = await db.session.findFirst({
-    where: { coachId: user.id, status: "IN_PROGRESS", archived: false },
-    orderBy: { startedAt: "desc" },
-    include: { candidate: true, case: { select: { title: true } } },
-  });
+  // §6.4 — an in-progress session survives a closed tab. A guest's belongs to
+  // their cookie rather than to an account, but it survives the same way.
+  const open =
+    viewer.kind === "user"
+      ? await db.session.findFirst({
+          where: { coachId: viewer.user.id, status: "IN_PROGRESS", archived: false },
+          orderBy: { startedAt: "desc" },
+          include: { candidate: true, case: { select: { title: true } } },
+        })
+      : viewer.guestKey
+        ? await db.session.findFirst({
+            where: { guestKey: viewer.guestKey, status: "IN_PROGRESS", archived: false },
+            orderBy: { startedAt: "desc" },
+            include: { candidate: true, case: { select: { title: true } } },
+          })
+        : null;
 
   return (
     <div className="min-h-screen">
@@ -35,11 +52,27 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             />
           </Link>
           <NavLink href="/library">Library</NavLink>
-          <NavLink href="/casebooks">Casebooks</NavLink>
-          <NavLink href="/candidates">Candidates</NavLink>
-          <NavLink href="/sessions">Sessions</NavLink>
+          {!isGuest && (
+            <>
+              <NavLink href="/casebooks">Casebooks</NavLink>
+              <NavLink href="/candidates">Candidates</NavLink>
+              <NavLink href="/sessions">Sessions</NavLink>
+            </>
+          )}
           <div className="flex-1" />
-          <NavLink href="/settings">{user.name}</NavLink>
+          {isGuest ? (
+            <div className="flex items-center gap-2">
+              <span className="chip border-rule text-faint">Guest</span>
+              <Link href="/login" className="btn btn-quiet py-1">
+                Sign in
+              </Link>
+              <Link href="/signup" className="btn btn-primary py-1">
+                Create account
+              </Link>
+            </div>
+          ) : (
+            <NavLink href="/settings">{viewer.user.name}</NavLink>
+          )}
         </div>
       </header>
 

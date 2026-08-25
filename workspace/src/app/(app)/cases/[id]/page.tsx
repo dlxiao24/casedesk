@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { signedFileUrl } from "@/actions/casebooks";
-import { requireUser } from "@/lib/auth";
+import { currentViewer } from "@/lib/viewer";
 import { CASE_FORMATS, CASE_TYPES, TARGET_ROUNDS } from "@/lib/constants";
 import { ago, shortDate } from "@/lib/format";
 import { HIDDEN_CANDIDATE_LABEL, canSeeCandidate } from "@/lib/candidateAccess";
@@ -15,12 +15,15 @@ import { SharedNotes } from "./SharedNotes";
 import { CaseFields } from "./CaseFields";
 import { ArchiveCase } from "./ArchiveCase";
 import { CaseView } from "./CaseView";
+import { GuestCasePage } from "./GuestCasePage";
 
 export const dynamic = "force-dynamic";
 
 export default async function CasePage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser();
+  const viewer = await currentViewer();
   const { id } = await params;
+  if (viewer.kind === "guest") return <GuestCasePage id={id} />;
+  const user = viewer.user;
 
   const kase = await db.case.findUnique({
     where: { id },
@@ -30,7 +33,7 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
       sections: { orderBy: { order: "asc" } },
       _count: { select: { sessions: true } },
       sessions: {
-        where: { archived: false },
+        where: { archived: false, guestKey: null },
         orderBy: { startedAt: "desc" },
         take: 8,
         include: {

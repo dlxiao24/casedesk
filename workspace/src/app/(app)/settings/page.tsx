@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
+import { signOut } from "@/actions/auth";
 import { supabaseConfigured } from "@/lib/env";
 import { ProfileForm } from "./ProfileForm";
 
@@ -43,7 +44,7 @@ export default async function SettingsPage() {
           <h2 className="text-sm text-ink">Admin</h2>
           <div className="flex gap-2">
             <Link href="/settings/coaches" className="btn">
-              Coaches and invites
+              Coaches
             </Link>
             <Link href="/settings/phrases" className="btn">
               Phrase bank
@@ -51,6 +52,19 @@ export default async function SettingsPage() {
           </div>
         </section>
       )}
+
+      <section className="flex items-center justify-between rounded border border-rule p-3">
+        <div>
+          <h2 className="text-sm text-ink">Signed in as {user.email}</h2>
+          <p className="text-2xs text-faint">
+            Signing out returns you to the library, which guests can read.
+          </p>
+        </div>
+        {/* A server action, so the session cookie is cleared where it lives. */}
+        <form action={signOut}>
+          <button className="btn btn-quiet">Sign out</button>
+        </form>
+      </section>
 
       <section className="rounded border border-dashed border-rule p-3">
         <h2 className="text-sm text-ink">Cost</h2>
@@ -60,7 +74,7 @@ export default async function SettingsPage() {
         </p>
         {!supabaseConfigured && (
           <p className="mt-2 text-2xs text-warn">
-            Running without Supabase — file storage and magic-link sign-in are inactive here.
+            Running without Supabase — file storage and account sign-in are inactive here.
           </p>
         )}
       </section>

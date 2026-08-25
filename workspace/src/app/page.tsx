@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
-import { currentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
-  const user = await currentUser();
-  redirect(user ? "/library" : "/login");
+/**
+ * The library is the front door for everyone now — a guest sees a sample of
+ * it rather than a login wall.
+ */
+export default function Home() {
+  redirect("/library");
 }

@@ -28,6 +28,8 @@ export function WrapUp({
   ownerName,
   caseQuality,
   existingPersonalNotes,
+  /** A guest has no library of their own to rate cases or keep notes in. */
+  canKeepNotes,
   scores: initialScores,
   takeaways: initialTakeaways,
   overallNote: initialOverall,
@@ -39,6 +41,7 @@ export function WrapUp({
   ownerName: string;
   caseQuality: number | null;
   existingPersonalNotes: string;
+  canKeepNotes: boolean;
   scores: Partial<Record<Dimension, number>>;
   takeaways: Takeaway[];
   overallNote: string;
@@ -205,7 +208,9 @@ export function WrapUp({
       </section>
 
       {/* 4. On the case itself — deliberately walled off from the candidate-facing
-          fields above, because none of it ever reaches the candidate (§7). */}
+          fields above, because none of it ever reaches the candidate (§7). The
+          whole panel is about keeping the library, so a guest never sees it. */}
+      {canKeepNotes && (
       <section className="rounded border border-dashed border-rule bg-panel/60 p-3">
         <h2 className="text-sm text-ink">On the case itself</h2>
         <p className="mt-0.5 text-2xs text-faint">
@@ -280,6 +285,7 @@ export function WrapUp({
           )}
         </div>
       </section>
+      )}
     </div>
   );
 }
