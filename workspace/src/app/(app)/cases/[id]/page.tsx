@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { signedFileUrl } from "@/actions/casebooks";
 import { currentViewer } from "@/lib/viewer";
+import { RATED_KEYS, type RatingValues } from "@/lib/caseRatings";
 import { CASE_FORMATS, CASE_TYPES, TARGET_ROUNDS } from "@/lib/constants";
 import { ago, shortDate } from "@/lib/format";
 import { HIDDEN_CANDIDATE_LABEL, canSeeCandidate } from "@/lib/candidateAccess";
@@ -68,6 +69,15 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
   }
 
   const isOwner = kase.ownerId === user.id;
+
+  // This coach's own row in the ratings, for pre-filling the controls and for
+  // showing them where they sit relative to everyone else.
+  const rating = await db.caseRating.findUnique({
+    where: { userId_caseId: { userId: user.id, caseId: id } },
+  });
+  const myRating: RatingValues = rating
+    ? Object.fromEntries(RATED_KEYS.map((key) => [key, rating[key]]))
+    : {};
 
   return (
     <div className="space-y-6">
@@ -213,9 +223,8 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
         <div className="space-y-6">
           <CaseAttributes
             caseId={kase.id}
-            isOwner={isOwner}
-            ownerName={kase.owner.name}
-            values={{
+            ratingCount={kase.ratingCount}
+            averages={{
               quantIntensity: kase.quantIntensity,
               creativityLoad: kase.creativityLoad,
               structureDifficulty: kase.structureDifficulty,
@@ -224,6 +233,7 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
               overallDifficulty: kase.overallDifficulty,
               caseQuality: kase.caseQuality,
             }}
+            mine={myRating}
           />
           <PersonalNotes caseId={kase.id} initial={mine.personalNotes ?? ""} />
           <div className="text-2xs text-faint">

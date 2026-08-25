@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import clsx from "clsx";
 import type { Dimension, TakeawayKind } from "@prisma/client";
-import { appendPersonalNote, setCaseAttribute } from "@/actions/cases";
+import { appendPersonalNote, rateCase } from "@/actions/cases";
 import {
   draftForSession,
   reopenSession,
@@ -12,8 +12,10 @@ import {
   setScore,
   setTakeaway,
 } from "@/actions/sessions";
-import { ScoreBar } from "@/components/ScoreBar";
+import { ScoreBar, formatScore } from "@/components/ScoreBar";
 import { Segmented } from "@/components/Segmented";
+import { CASE_ATTRIBUTES } from "@/lib/constants";
+import type { RatedKey, RatingValues } from "@/lib/caseRatings";
 import { DIMENSIONS } from "@/lib/constants";
 import { SaveIndicator, useAutosave, useKeyedAutosave } from "@/lib/useAutosave";
 
@@ -24,8 +26,8 @@ export function WrapUp({
   sessionId,
   caseId,
   locked,
-  isOwner,
-  ownerName,
+  myRating: initialRating,
+  ratingCount,
   caseQuality,
   existingPersonalNotes,
   /** A guest has no library of their own to rate cases or keep notes in. */
@@ -37,8 +39,8 @@ export function WrapUp({
   sessionId: string;
   caseId: string;
   locked: boolean;
-  isOwner: boolean;
-  ownerName: string;
+  myRating: RatingValues;
+  ratingCount: number;
   caseQuality: number | null;
   existingPersonalNotes: string;
   canKeepNotes: boolean;
@@ -61,7 +63,20 @@ export function WrapUp({
     setItems(JSON.parse(serverItems) as Takeaway[]);
   }, [serverItems]);
   const [overall, setOverall] = useState(initialOverall);
-  const [quality, setQuality] = useState(caseQuality);
+  const [rating, setRating] = useState<RatingValues>(initialRating);
+  const [ratingRestOpen, setRatingRestOpen] = useState(false);
+
+  /**
+   * Rating a case is one coach's vote, not the owner's decree, so this writes
+   * to the person's own rating and the library shows the average. Saved a
+   * field at a time, like everything else on this page.
+   */
+  function rate(key: RatedKey, value: number | null) {
+    setRating((r) => ({ ...r, [key]: value }));
+    startSave(async () => {
+      await rateCase(caseId, { [key]: value });
+    });
+  }
   const [caseNote, setCaseNote] = useState("");
   const [drafting, startDraft] = useTransition();
   const [draftMessage, setDraftMessage] = useState<string | null>(null);
@@ -217,26 +232,56 @@ export function WrapUp({
           Not part of the feedback. Nothing here appears in the report.
         </p>
 
-        <div className="mt-3 flex items-center gap-3">
+        {/* The one question worth asking every time, up front. You have just
+            run the case, so this is the moment your answer is worth most. */}
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <span className="text-sm text-muted">Would you give this again?</span>
-          {isOwner ? (
-            <Segmented
-              name="Case quality"
-              value={quality}
-              onChange={(v) => {
-                setQuality(v);
-                startSave(async () => {
-                  await setCaseAttribute(caseId, "caseQuality", v);
-                });
-              }}
-            />
-          ) : (
-            <span className="flex items-center gap-2">
-              <ScoreBar value={quality} tone="good" />
-              <span className="text-2xs text-faint">
-                {ownerName} owns this rating. Put your view in the note below.
-              </span>
+          <Segmented
+            name="Would you give this again?"
+            value={rating.caseQuality ?? null}
+            onChange={(v) => rate("caseQuality", v)}
+          />
+          {caseQuality !== null && ratingCount > 0 && (
+            <span className="flex items-center gap-1.5 text-2xs text-faint">
+              <ScoreBar
+                value={caseQuality}
+                size="xs"
+                tone="good"
+                name="Club average"
+                ratingCount={ratingCount}
+              />
+              {formatScore(caseQuality)} across {ratingCount}{" "}
+              {ratingCount === 1 ? "coach" : "coaches"}
             </span>
+          )}
+        </div>
+
+        {/* The other six, folded away. Most people will answer the question
+            above and move on; the ones who want to say more can. */}
+        <div className="mt-2">
+          <button
+            className="text-2xs text-accent hover:underline"
+            aria-expanded={ratingRestOpen}
+            onClick={() => setRatingRestOpen((o) => !o)}
+          >
+            {ratingRestOpen ? "Hide the rest" : "Rate the rest of the case"}
+          </button>
+
+          {ratingRestOpen && (
+            <dl className="mt-2 space-y-2 border-t border-rule pt-2">
+              {CASE_ATTRIBUTES.map(({ key, label }) => (
+                <div key={key} className="flex items-center justify-between gap-2">
+                  <dt className="text-sm text-muted">{label}</dt>
+                  <dd>
+                    <Segmented
+                      name={label}
+                      value={rating[key as RatedKey] ?? null}
+                      onChange={(v) => rate(key as RatedKey, v)}
+                    />
+                  </dd>
+                </div>
+              ))}
+            </dl>
           )}
         </div>
 

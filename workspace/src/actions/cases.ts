@@ -6,6 +6,13 @@ import { z } from "zod";
 import type { ReadinessState } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import {
+  RATED_KEYS,
+  type RatingValues,
+  cleanRating,
+  isEmptyRating,
+  recomputeCaseAverages,
+} from "@/lib/caseRatings";
 import { CASE_ATTRIBUTES } from "@/lib/constants";
 
 const caseInput = z.object({
@@ -110,24 +117,58 @@ export async function updateCase(caseId: string, form: FormData) {
 }
 
 /** Owner-only 1-5 attributes and the quality verdict (§14). */
-export async function setCaseAttribute(caseId: string, key: string, value: number | null) {
+/**
+ * Record one coach's rating of a case.
+ *
+ * Any coach may rate any case. Ratings used to belong to whoever added the
+ * case, which made the library's numbers one person's taste; what the library
+ * shows now is the average, and this is one vote in it.
+ *
+ * Only the keys present in `values` are touched, so the wrap-up page can set
+ * the verdict alone without wiping the six attributes rated earlier.
+ */
+export async function rateCase(caseId: string, values: RatingValues) {
   const user = await requireUser();
-  const known = [...CASE_ATTRIBUTES.map((a) => a.key), "caseQuality"] as string[];
-  if (!known.includes(key)) return { error: "Unknown attribute." };
 
-  const target = await db.case.findUniqueOrThrow({
-    where: { id: caseId },
-    select: { ownerId: true },
-  });
-  if (target.ownerId !== user.id) {
-    return { error: "Case ratings belong to the coach who added the case." };
+  const clean: Record<string, number | null> = {};
+  for (const key of RATED_KEYS) {
+    if (!(key in values)) continue;
+    clean[key] = cleanRating(values[key]);
   }
-  if (value !== null && (value < 1 || value > 5)) return { error: "Ratings run 1 to 5." };
+  if (Object.keys(clean).length === 0) return { error: undefined };
 
-  await db.case.update({ where: { id: caseId }, data: { [key]: value } });
+  const saved = await db.caseRating.upsert({
+    where: { userId_caseId: { userId: user.id, caseId } },
+    create: { userId: user.id, caseId, ...clean },
+    update: clean,
+    });
+
+  // Clearing every field is how a coach withdraws a rating, and an empty row
+  // would still be counted as one by ratingCount.
+  if (isEmptyRating(saved)) {
+    await db.caseRating.delete({ where: { id: saved.id } });
+  }
+
+  await recomputeCaseAverages(caseId);
   revalidatePath(`/cases/${caseId}`);
   revalidatePath("/library");
   return { error: undefined };
+}
+
+/** One attribute at a time, for the controls that set exactly one. */
+export async function setCaseAttribute(caseId: string, key: string, value: number | null) {
+  if (!(RATED_KEYS as readonly string[]).includes(key)) return { error: "Unknown attribute." };
+  return rateCase(caseId, { [key]: value } as RatingValues);
+}
+
+/** The signed-in coach's own rating, for pre-filling the controls. */
+export async function myRating(caseId: string): Promise<RatingValues> {
+  const user = await requireUser();
+  const mine = await db.caseRating.findUnique({
+    where: { userId_caseId: { userId: user.id, caseId } },
+  });
+  if (!mine) return {};
+  return Object.fromEntries(RATED_KEYS.map((key) => [key, mine[key]])) as RatingValues;
 }
 
 export async function setArchived(caseId: string, archived: boolean) {

@@ -23,6 +23,7 @@ model User {
   coachCases CoachCase[]
   casebooks  Casebook[]
   candidates  Candidate[] @relation("CandidateCreator")
+  caseRatings CaseRating[]
   invitesSent Invite[]    @relation("InviteSender")
 }
 
@@ -98,16 +99,26 @@ model Case {
   ownerId String
   owner   User   @relation(fields: [ownerId], references: [id])
 
-  // Attributes of the case itself, 1-5. Set by the owner only.
-  quantIntensity      Int?
-  creativityLoad      Int?
-  structureDifficulty Int?
-  ambiguity           Int?
-  dataDensity         Int?
-  overallDifficulty   Int?
+  // Attributes of the case itself, 1-5.
+  //
+  // These are no longer anybody's opinion: each one is the mean of every
+  // coach's rating in CaseRating, recomputed on write. They live here rather
+  // than being derived on read so that the library's filters and sorts stay
+  // ordinary SQL. Float, because an average of 4 and 3 is 3.5.
+  quantIntensity      Float?
+  creativityLoad      Float?
+  structureDifficulty Float?
+  ambiguity           Float?
+  dataDensity         Float?
+  overallDifficulty   Float?
 
   /// Verdict on the case as a teaching tool, not a property of its content.
-  caseQuality Int?
+  /// Also a mean of CaseRating.
+  caseQuality Float?
+
+  /// How many coaches have rated this case at all. Cached alongside the means
+  /// so a library row can say what it is an average of without a join.
+  ratingCount Int @default(0)
 
   notes     String?
   archived  Boolean  @default(false)
@@ -121,9 +132,39 @@ model Case {
   sections   Section[]
   sessions   Session[]
   coachCases CoachCase[]
+  ratings    CaseRating[]
 
   @@index([casebookId])
   @@index([ownerId])
+}
+
+/// One coach's view of one case, 1-5 per attribute.
+///
+/// Ratings used to belong to whoever added the case, which made the library's
+/// numbers one person's taste. Every coach rates now, and what the library
+/// shows is the average. Every field is optional: rating quant intensity
+/// without an opinion on ambiguity is normal, and each attribute averages over
+/// the people who actually answered it.
+model CaseRating {
+  id     String @id @default(cuid())
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  quantIntensity      Int?
+  creativityLoad      Int?
+  structureDifficulty Int?
+  ambiguity           Int?
+  dataDensity         Int?
+  overallDifficulty   Int?
+  caseQuality         Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, caseId])
+  @@index([caseId])
 }
 
 enum CaseType {

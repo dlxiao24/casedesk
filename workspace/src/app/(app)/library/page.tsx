@@ -153,5 +153,6 @@ function serialize(row: Awaited<ReturnType<typeof guestLibrary>>["rows"][number]
     ownerName: row.owner.name,
     archived: row.archived,
     sampleForGuests: row.sampleForGuests,
+    ratingCount: row.ratingCount,
   };
 }

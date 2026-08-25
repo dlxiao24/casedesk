@@ -47,12 +47,30 @@ async function main() {
       targetRound: "FIRST_ROUND",
       format: "INTERVIEWER_LED",
       ownerId: admin.id,
+      // The columns on Case are averages, written by recomputeCaseAverages
+      // from the ratings below — setting them here as well keeps a freshly
+      // seeded database from showing numbers that would vanish the first time
+      // somebody rated the case.
       quantIntensity: 4,
       creativityLoad: 2,
       structureDifficulty: 3,
       ambiguity: 2,
       dataDensity: 4,
       overallDifficulty: 3,
+      ratingCount: 1,
+      ratings: {
+        create: [
+          {
+            userId: admin.id,
+            quantIntensity: 4,
+            creativityLoad: 2,
+            structureDifficulty: 3,
+            ambiguity: 2,
+            dataDensity: 4,
+            overallDifficulty: 3,
+          },
+        ],
+      },
       notes:
         "Classic profitability walk. The trap is jumping to price before splitting revenue into traffic and ticket.",
       sections: {

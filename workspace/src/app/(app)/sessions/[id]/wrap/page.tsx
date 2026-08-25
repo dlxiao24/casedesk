@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireSessionAccess } from "@/lib/viewer";
+import { RATED_KEYS, type RatingValues } from "@/lib/caseRatings";
 import { clock } from "@/lib/format";
 import { WrapUp } from "./WrapUp";
 import { GenerateReport } from "./GenerateReport";
@@ -15,12 +16,32 @@ export default async function WrapPage({ params }: { params: Promise<{ id: strin
     where: { id },
     include: {
       candidate: { select: { id: true, name: true } },
-      case: { select: { id: true, title: true, ownerId: true, caseQuality: true, owner: { select: { name: true } } } },
+      case: {
+        select: {
+          id: true,
+          title: true,
+          ownerId: true,
+          caseQuality: true,
+          ratingCount: true,
+          owner: { select: { name: true } },
+        },
+      },
       scores: true,
       takeaways: { orderBy: { rank: "asc" } },
     },
   });
   if (!session) notFound();
+
+  // A guest rates nothing and keeps no notes, so neither is looked up.
+  const rating =
+    viewer.kind === "user"
+      ? await db.caseRating.findUnique({
+          where: { userId_caseId: { userId: viewer.user.id, caseId: session.caseId } },
+        })
+      : null;
+  const myRating: RatingValues = rating
+    ? Object.fromEntries(RATED_KEYS.map((key) => [key, rating[key]]))
+    : {};
 
   // A guest has no personal notes on a case, and never will.
   const mine =
@@ -58,8 +79,8 @@ export default async function WrapPage({ params }: { params: Promise<{ id: strin
         sessionId={session.id}
         caseId={session.caseId}
         locked={session.locked}
-        isOwner={viewer.kind === "user" && session.case.ownerId === viewer.user.id}
-        ownerName={session.case.owner.name}
+        myRating={myRating}
+        ratingCount={session.case.ratingCount}
         caseQuality={session.case.caseQuality}
         existingPersonalNotes={mine?.personalNotes ?? ""}
         canKeepNotes={viewer.kind === "user"}

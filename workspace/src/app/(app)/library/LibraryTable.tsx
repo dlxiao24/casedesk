@@ -36,6 +36,8 @@ export type Row = {
   ownerName: string;
   archived: boolean;
   sampleForGuests: boolean;
+  /** How many coaches the ratings above are averaged over. */
+  ratingCount: number;
 };
 
 type SortKey =
@@ -250,19 +252,34 @@ export function LibraryTable({
                     </td>
                     <td className="px-3 py-2 text-muted">{typeLabel(row.caseType)}</td>
                     <td className="px-3 py-2">
-                      <ScoreBar value={row.overallDifficulty} />
+                      <ScoreBar
+                        value={row.overallDifficulty}
+                        name="Difficulty"
+                        ratingCount={row.ratingCount}
+                      />
                     </td>
                     <td className="px-3 py-2">
-                      <ScoreBar value={row.quantIntensity} size="xs" />
+                      <ScoreBar
+                        value={row.quantIntensity}
+                        size="xs"
+                        name="Quant intensity"
+                        ratingCount={row.ratingCount}
+                      />
                     </td>
                     <td className="px-3 py-2">
-                      <ScoreBar value={row.creativityLoad} size="xs" />
+                      <ScoreBar
+                        value={row.creativityLoad}
+                        size="xs"
+                        name="Creativity load"
+                        ratingCount={row.ratingCount}
+                      />
                     </td>
                     <td className="px-3 py-2">
                       <ScoreBar
                         value={row.caseQuality}
                         tone={lowQuality ? "warn" : "good"}
-                        label={row.caseQuality ? `Quality ${row.caseQuality} of 5` : "Not yet rated"}
+                        name="Quality"
+                        ratingCount={row.ratingCount}
                       />
                     </td>
                     <td className="px-3 py-2">
@@ -491,20 +508,38 @@ function CaseDetailRow({ row }: { row: Row }) {
           </div>
 
           <div>
-            <h3 className="label">Ratings</h3>
+            <h3 className="label">
+              Ratings
+              <span className="ml-1 normal-case text-faint">
+                {row.ratingCount === 0
+                  ? "· nobody yet"
+                  : `· ${row.ratingCount} coach${row.ratingCount === 1 ? "" : "es"}`}
+              </span>
+            </h3>
             <dl className="mt-1 space-y-1">
               {attributes.map((a) => (
                 <div key={a.label} className="flex items-center justify-between gap-2">
                   <dt className="text-2xs text-muted">{a.label}</dt>
                   <dd>
-                    <ScoreBar value={a.value} size="xs" label={a.label} />
+                    <ScoreBar
+                      value={a.value}
+                      size="xs"
+                      name={a.label}
+                      ratingCount={row.ratingCount}
+                    />
                   </dd>
                 </div>
               ))}
               <div className="flex items-center justify-between gap-2 border-t border-rule pt-1">
                 <dt className="text-2xs text-muted">Give again?</dt>
                 <dd>
-                  <ScoreBar value={row.caseQuality} size="xs" tone="good" label="Case quality" />
+                  <ScoreBar
+                    value={row.caseQuality}
+                    size="xs"
+                    tone="good"
+                    name="Give again"
+                    ratingCount={row.ratingCount}
+                  />
                 </dd>
               </div>
             </dl>
