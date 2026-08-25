@@ -1,14 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const MIN_PASSWORD = 8;
 
 export function ResetForm() {
-  const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
@@ -36,8 +34,8 @@ export function ResetForm() {
           : error.message,
       );
     }
-    router.refresh();
-    router.push("/library");
+    // Full load rather than router.push — see the note in LoginForm.
+    window.location.assign("/library");
   }
 
   return (

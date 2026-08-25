@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -42,10 +40,18 @@ export function LoginForm() {
       return;
     }
 
-    // The cookie is written by the browser client; refresh so the server sees
-    // it on the next render rather than serving the guest view again.
-    router.refresh();
-    router.push("/library");
+    /**
+     * A full document load, not router.push.
+     *
+     * Signing in changes what every server component renders — the header, the
+     * library, the whole tree — but the client router cache still holds the
+     * pages this browser saw as a guest, and hands them back on a soft
+     * navigation. Refreshing first does not help: it invalidates the page
+     * being left, not the one being entered. Reloading is the one thing that
+     * is certain to re-render everything with the new cookie, and sign-in is
+     * exactly the moment a full load is worth it.
+     */
+    window.location.assign("/library");
   }
 
   async function resend() {

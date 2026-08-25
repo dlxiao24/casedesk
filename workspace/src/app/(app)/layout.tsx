@@ -38,7 +38,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-rule bg-paper/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-1 px-4">
-          <Link href="/library" className="mr-4 shrink-0" aria-label="Case Desk — home">
+          {/* The landing page, not the library — it is the site's home, and it
+              is where the wordmark belongs. Library has its own nav link. */}
+          <Link href="/" className="mr-4 shrink-0" aria-label="casedesk — home">
             {/* The horizontal lockup, so the wordmark stays legible in a bar
                 this short. `priority` because it is above the fold on every
                 page and a flash of missing logo reads as a broken app. */}
