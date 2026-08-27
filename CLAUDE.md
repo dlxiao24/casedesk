@@ -102,10 +102,12 @@ Current admins: `dlxiao@umich.edu`, `rishigar@umich.edu`. (`newsap97@gmail.com` 
   then refuses — and anything handed to a client component is scoped at the query, since what is
   not rendered still ships.
 - **Analytics never sees a share token.** A page view is reported with the URL it happened on,
-  and for a shared report that URL is the credential (§8). `src/components/Analytics.tsx` rewrites
-  `/share/<token>` to `/share/[token]` in `beforeSend`, which keeps the count and discards the
-  access. It is a wrapper rather than the bare component because `beforeSend` is a function and
-  functions do not cross into a Client Component from the server.
+  and for a shared report that URL is the credential (§8). `src/components/Analytics.tsx` drops
+  those events outright in `beforeSend`. Rewriting the path to `/share/[token]` looks like the
+  tidier fix and does not work — the collector is sent the rewritten URL *and* a separate raw-path
+  field that `beforeSend` never touches — so shared reports go uncounted, which is the price of the
+  token being in the path. It is a wrapper rather than the bare component because `beforeSend` is a
+  function and functions do not cross into a Client Component from the server.
 - **`src/lib/loadReport.ts` is the single place session data becomes candidate-facing.** Interviewer
   guides, personal notes and case-quality ratings are excluded there. Anything new that reaches a
   candidate should go through it.
