@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import type { User } from "@prisma/client";
 import { db } from "@/lib/db";
 import { currentUser } from "@/lib/auth";
+import { canSeeSession } from "@/lib/sessionAccess";
 import {
   GUEST_COOKIE,
   GUEST_USER_EMAIL,
@@ -75,22 +76,33 @@ export const REAL_USERS = { id: { not: GUEST_USER_ID } } as const;
 /**
  * Who may open a session's pages — the runner, the wrap-up, the report.
  *
- * Viewing stays club-wide for coaches, as §2 intends: the sessions list names
- * everyone's, and a coach can read any of them. Writing is narrower and is
- * enforced in the actions. A guest sees only what their own cookie started,
- * and a guest's session is not club activity, so it stays out of coaches'
- * sight — an admin excepted, who can reach anything.
+ * A coach reads the sessions they ran and nothing else; an admin reaches
+ * anything. That is the rule the actions have always applied to writes, and
+ * reading now agrees with writing — see `sessionAccess.ts` for why it narrows
+ * §2. A guest sees only what their own cookie started, and a guest's session
+ * is not club activity, so it stays out of coaches' sight — an admin
+ * excepted, who can reach anything.
+ *
+ * Denial redirects rather than 404s. The session exists and its id came from
+ * somewhere legitimate — a bookmark, a link from before the rule tightened —
+ * so sending the coach to their own list is the honest answer.
  */
 export async function requireSessionAccess(sessionId: string): Promise<Viewer> {
   const viewer = await currentViewer();
   const session = await db.session.findUnique({
     where: { id: sessionId },
-    select: { guestKey: true },
+    select: { guestKey: true, coachId: true },
   });
   if (!session) notFound();
 
   if (viewer.kind === "user") {
-    if (session.guestKey !== null && viewer.user.role !== "ADMIN") redirect("/sessions");
+    // A guest's run belongs to its cookie, not to the coach whose id sits on
+    // it, so ownership says nothing here — only an admin may look.
+    if (session.guestKey !== null) {
+      if (viewer.user.role !== "ADMIN") redirect("/sessions");
+      return viewer;
+    }
+    if (!canSeeSession(viewer.user, session)) redirect("/sessions");
     return viewer;
   }
 

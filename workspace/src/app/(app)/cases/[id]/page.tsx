@@ -7,6 +7,7 @@ import { RATED_KEYS, type RatingValues } from "@/lib/caseRatings";
 import { CASE_FORMATS, CASE_TYPES, TARGET_ROUNDS } from "@/lib/constants";
 import { ago, shortDate } from "@/lib/format";
 import { HIDDEN_CANDIDATE_LABEL, canSeeCandidate } from "@/lib/candidateAccess";
+import { sessionScope } from "@/lib/sessionAccess";
 import { ReadinessChip } from "../../library/LibraryTable";
 import { CaseAttributes } from "./CaseAttributes";
 import { PersonalNotes } from "./PersonalNotes";
@@ -34,8 +35,10 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
       owner: { select: { id: true, name: true } },
       sections: { orderBy: { order: "asc" } },
       _count: { select: { sessions: true, sections: true } },
+      // Your runs of this case, not the club's. _count below still counts
+      // them all: how often a case has been used is a fact about the case.
       sessions: {
-        where: { archived: false, guestKey: null },
+        where: { archived: false, guestKey: null, ...sessionScope(user) },
         orderBy: { startedAt: "desc" },
         take: 8,
         include: {
@@ -181,10 +184,14 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
           />
 
           <section>
-            <h2 className="text-sm text-ink">Recent sessions</h2>
+            <h2 className="text-sm text-ink">
+              {user.role === "ADMIN" ? "Recent sessions" : "Your recent sessions"}
+            </h2>
             {kase.sessions.length === 0 ? (
               <p className="mt-2 text-sm text-faint">
-                Nobody has run this case yet. You would be the first.
+                {kase._count.sessions === 0
+                  ? "Nobody has run this case yet. You would be the first."
+                  : "You have not run this case yet."}
               </p>
             ) : (
               <ul className="mt-2 divide-y divide-rule rounded border border-rule">

@@ -35,9 +35,22 @@ export default async function NewSessionPage({
     take: 500,
   });
 
-  // Repeat-case warning (§9): who has already been given this case.
+  /**
+   * Repeat-case warning (§9): who has already been given this case.
+   *
+   * Restricted to the candidates on offer above, because the whole map is
+   * serialized into the page for the client component to read. Querying every
+   * candidate and rendering only some would ship the rest to the browser
+   * anyway — who was cased, when, and by which coach — which is exactly the
+   * club-wide visibility `sessionScope` just took away.
+   */
   const priorSessions = await db.session.findMany({
-    where: { caseId, archived: false, guestKey: null },
+    where: {
+      caseId,
+      archived: false,
+      guestKey: null,
+      candidateId: { in: candidates.map((c) => c.id) },
+    },
     select: { candidateId: true, startedAt: true, coach: { select: { name: true } } },
     orderBy: { startedAt: "desc" },
   });

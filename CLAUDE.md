@@ -72,8 +72,9 @@ Three levels, only one self-served:
   placeholders where the rest would be, and can run one against a shared "Sample User". Their
   session belongs to a cookie (`Session.guestKey`), so it is theirs alone and stays out of coaches'
   lists.
-- **Coach** — anyone who confirms an email. Reads everything, runs cases against candidates they
-  add, keeps their own notes and readiness. Cannot add or split cases.
+- **Coach** — anyone who confirms an email. Reads the whole case library, runs cases against
+  candidates they add, and reads back only the sessions they ran themselves. Keeps their own notes
+  and readiness. Cannot add or split cases.
 - **Admin** — granted only by another admin on Settings → Coaches. Adds casebooks and cases,
   sees every candidate, permanently deletes archived records.
 
@@ -89,6 +90,12 @@ Current admins: `dlxiao@umich.edu`, `rishigar@umich.edu`. (`newsap97@gmail.com` 
   live in `CaseRating`, one row per coach, and `recomputeCaseAverages()` rewrites the cache on
   every write. They are cached rather than derived so the library's filters and sorts stay ordinary
   SQL. Each attribute averages only over the coaches who answered *that* attribute.
+- **Sessions and candidates are private to the coach who owns them; admins see everything.**
+  `src/lib/sessionAccess.ts` and `src/lib/candidateAccess.ts` are the two scopes, and both narrow
+  spec §2 for the same reason: sign-up is open, so "every coach" now means "anyone who confirms an
+  email". Any list that links into a session has to apply the scope, or it offers a link the page
+  then refuses — and anything handed to a client component is scoped at the query, since what is
+  not rendered still ships.
 - **`src/lib/loadReport.ts` is the single place session data becomes candidate-facing.** Interviewer
   guides, personal notes and case-quality ratings are excluded there. Anything new that reaches a
   candidate should go through it.

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { canSeeCandidate } from "@/lib/candidateAccess";
+import { sessionScope } from "@/lib/sessionAccess";
 import { DIMENSIONS } from "@/lib/constants";
 import { clock, shortDate } from "@/lib/format";
 import { ScoreBar } from "@/components/ScoreBar";
@@ -19,8 +20,12 @@ export default async function CandidatePage({ params }: { params: Promise<{ id: 
   const candidate = await db.candidate.findUnique({
     where: { id },
     include: {
+      // Sessions you ran with them. An admin who cased your candidate keeps
+      // that session to themselves, the same as any other coach — so the
+      // trend below is the history you took part in, with no gaps you cannot
+      // account for.
       sessions: {
-        where: { archived: false },
+        where: { archived: false, ...sessionScope(user) },
         orderBy: { startedAt: "desc" },
         include: {
           case: { select: { id: true, title: true, caseType: true } },

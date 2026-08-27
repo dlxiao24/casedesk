@@ -4,12 +4,16 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { clock, shortDate } from "@/lib/format";
 import { HIDDEN_CANDIDATE_LABEL, canSeeCandidate } from "@/lib/candidateAccess";
+import { sessionScope } from "@/lib/sessionAccess";
 import { REAL_SESSIONS } from "@/lib/viewer";
 import { SessionRowActions } from "./SessionRowActions";
 
 export const dynamic = "force-dynamic";
 
-/** All sessions are visible to all coaches — deliberately (§2). */
+/**
+ * A coach's own sessions; every coach's, for an admin. See `sessionAccess.ts`
+ * for why this narrows §2.
+ */
 export default async function SessionsPage({
   searchParams,
 }: {
@@ -22,7 +26,13 @@ export default async function SessionsPage({
 
   const sessions = await db.session.findMany({
     // REAL_SESSIONS keeps guests' demo runs out of the club's record.
-    where: { archived: showArchived, ...REAL_SESSIONS, ...(onlyMine ? { coachId: user.id } : {}) },
+    // A coach's scope is already nothing but their own, so the narrowing
+    // toggle is an admin's — and harmless if a coach hand-types ?mine=1.
+    where: {
+      archived: showArchived,
+      ...REAL_SESSIONS,
+      ...(onlyMine ? { coachId: user.id } : sessionScope(user)),
+    },
     orderBy: { startedAt: "desc" },
     take: 200,
     include: {
@@ -41,16 +51,19 @@ export default async function SessionsPage({
           <p className="text-sm text-muted">
             {user.role === "ADMIN"
               ? "Every coach's sessions, with every candidate named."
-              : "Every coach's sessions. Candidates other coaches added are not named."}
+              : "The sessions you have run."}
           </p>
         </div>
         <div className="flex gap-2">
-          <Link
-            href={onlyMine ? "/sessions" : "/sessions?mine=1"}
-            className={clsx("btn", onlyMine && "border-faint")}
-          >
-            {onlyMine ? "All coaches" : "Only mine"}
-          </Link>
+          {/* Nothing to narrow when the list is already only yours. */}
+          {user.role === "ADMIN" && (
+            <Link
+              href={onlyMine ? "/sessions" : "/sessions?mine=1"}
+              className={clsx("btn", onlyMine && "border-faint")}
+            >
+              {onlyMine ? "All coaches" : "Only mine"}
+            </Link>
+          )}
           <Link
             href={showArchived ? "/sessions" : "/sessions?archived=1"}
             className="btn btn-quiet"
