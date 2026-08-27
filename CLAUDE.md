@@ -12,6 +12,11 @@ like "(§8.1)" in code comments point at it.
 is deterministic: it reads a phrase bank and the coach's starred notes. If a feature seems to want
 a model call, it is the wrong feature. Everything runs on free tiers (Supabase, Vercel, Gmail SMTP).
 
+Vercel Web Analytics is the one metered thing here, and it is a deliberate exception: the Hobby
+allowance costs nothing and stops collecting rather than billing when it runs out. It has to be
+switched on in the Vercel dashboard as well as installed — the package alone collects nothing. If
+it ever asks for a card, take it out.
+
 ## Layout
 
 The repo root is `casedesk/`. **The app lives in `workspace/`** — run every npm command from there.
@@ -96,6 +101,11 @@ Current admins: `dlxiao@umich.edu`, `rishigar@umich.edu`. (`newsap97@gmail.com` 
   email". Any list that links into a session has to apply the scope, or it offers a link the page
   then refuses — and anything handed to a client component is scoped at the query, since what is
   not rendered still ships.
+- **Analytics never sees a share token.** A page view is reported with the URL it happened on,
+  and for a shared report that URL is the credential (§8). `src/components/Analytics.tsx` rewrites
+  `/share/<token>` to `/share/[token]` in `beforeSend`, which keeps the count and discards the
+  access. It is a wrapper rather than the bare component because `beforeSend` is a function and
+  functions do not cross into a Client Component from the server.
 - **`src/lib/loadReport.ts` is the single place session data becomes candidate-facing.** Interviewer
   guides, personal notes and case-quality ratings are excluded there. Anything new that reaches a
   candidate should go through it.
