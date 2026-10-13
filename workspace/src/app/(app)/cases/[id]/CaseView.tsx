@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import type { SectionKind } from "@prisma/client";
+import { DownloadSlides } from "./DownloadSlides";
 
 export type ViewSection = {
   id: string;
@@ -29,11 +30,20 @@ const CaseSlides = dynamic(() => import("./CaseSlides").then((m) => m.CaseSlides
  * and rendering them all on every visit to the case page would make it crawl.
  */
 export function CaseView({
+  title,
   fileUrl,
   sections,
+  canDownload = false,
 }: {
+  title: string;
   fileUrl: string | null;
   sections: ViewSection[];
+  /**
+   * Opt-in, and off by default, so the guest shop window keeps working the way
+   * it does now: a visitor may read a sample case on screen without being
+   * handed a file of somebody else's casebook pages to keep.
+   */
+  canDownload?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const pageCount = sections.reduce(
@@ -45,9 +55,15 @@ export function CaseView({
     <section>
       <div className="flex items-baseline justify-between">
         <h2 className="text-sm text-ink">Case view</h2>
-        <button className="btn btn-quiet py-0.5" onClick={() => setOpen((o) => !o)}>
-          {open ? "Hide slides" : `Show ${pageCount || sections.length} slides`}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Revealed with the slides, because it saves exactly what they show. */}
+          {open && canDownload && sections.length > 0 && (
+            <DownloadSlides title={title} fileUrl={fileUrl} sections={sections} />
+          )}
+          <button className="btn btn-quiet py-0.5" onClick={() => setOpen((o) => !o)}>
+            {open ? "Hide slides" : `Show ${pageCount || sections.length} slides`}
+          </button>
+        </div>
       </div>
       <p className="mt-0.5 text-2xs text-faint">
         Every slide in delivery order, including interviewer solutions. Read it through before you

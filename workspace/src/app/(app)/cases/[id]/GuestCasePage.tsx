@@ -66,6 +66,7 @@ export async function GuestCasePage({ id }: { id: string }) {
       </p>
 
       <CaseView
+        title={kase.title}
         fileUrl={fileUrl}
         sections={kase.sections.map((sec) => ({
           id: sec.id,

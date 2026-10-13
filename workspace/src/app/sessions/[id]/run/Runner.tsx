@@ -15,6 +15,7 @@ import { SECTION_KINDS, isHiddenKind, sectionKindMeta } from "@/lib/constants";
 import { clock } from "@/lib/format";
 import { SaveIndicator, useAutosave } from "@/lib/useAutosave";
 import { SectionPalette } from "./SectionPalette";
+import { applyBulletKey } from "@/lib/bullets";
 
 // pdf.js only exists in the browser.
 const PdfPane = dynamic(() => import("./PdfPane").then((m) => m.PdfPane), {
@@ -530,6 +531,9 @@ function NoteField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
+          // "- " opens a bullet list, Enter carries it down (§6.2).
+          applyBulletKey(e, onChange);
+          if (e.defaultPrevented) return;
           // Tab moves between the two fields rather than out of the runner.
           if (e.key === "Tab" && (shift ? e.shiftKey : !e.shiftKey)) {
             e.preventDefault();

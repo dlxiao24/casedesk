@@ -18,6 +18,7 @@ import { CASE_ATTRIBUTES } from "@/lib/constants";
 import type { RatedKey, RatingValues } from "@/lib/caseRatings";
 import { DIMENSIONS } from "@/lib/constants";
 import { SaveIndicator, useAutosave, useKeyedAutosave } from "@/lib/useAutosave";
+import { applyBulletKey } from "@/lib/bullets";
 
 type Takeaway = { kind: TakeawayKind; rank: number; text: string };
 
@@ -219,6 +220,12 @@ export function WrapUp({
             setOverall(e.target.value);
             overallSaver.schedule(e.target.value);
           }}
+          onKeyDown={(e) =>
+            applyBulletKey(e, (value) => {
+              setOverall(value);
+              overallSaver.schedule(value);
+            })
+          }
         />
       </section>
 
@@ -296,6 +303,7 @@ export function WrapUp({
             placeholder="Exhibit 3 is unreadable. Casebook math is wrong — 4.2M, not 4.8M."
             value={caseNote}
             onChange={(e) => setCaseNote(e.target.value)}
+            onKeyDown={(e) => applyBulletKey(e, setCaseNote)}
           />
           <div className="mt-1.5 flex items-center gap-2">
             <button
@@ -365,6 +373,7 @@ function TakeawayColumn({
               className="field prose-notes leading-relaxed"
               value={textFor(kind, rank)}
               onChange={(e) => onChange(kind, rank, e.target.value)}
+              onKeyDown={(e) => applyBulletKey(e, (value) => onChange(kind, rank, value))}
             />
           </li>
         ))}

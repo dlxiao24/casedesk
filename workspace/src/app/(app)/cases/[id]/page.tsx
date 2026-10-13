@@ -171,6 +171,8 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
           />
 
           <CaseView
+            title={kase.title}
+            canDownload
             fileUrl={fileUrl}
             sections={kase.sections.map((sec) => ({
               id: sec.id,

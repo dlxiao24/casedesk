@@ -1,5 +1,6 @@
 import type { Dimension, Phrase, TakeawayKind } from "@prisma/client";
 import { bandForScore } from "@/lib/constants";
+import { BULLET } from "@/lib/bullets";
 
 export type DraftInput = {
   scores: { dimension: Dimension; value: number }[];
@@ -57,16 +58,36 @@ export function draftTakeaways({ scores, phrases, starred }: DraftInput): DraftR
 }
 
 /**
- * Feedback notes the coach flagged with a leading "*" (§7.1). Tolerates a
- * timestamp stamp on either side of the star, since Cmd+Enter stamps the line
- * start and coaches star before or after.
+ * Anything a line can carry before its actual content: the timestamp stamp
+ * Cmd+Enter writes, and the bullet "- " turns into. Both land at the line
+ * start, both can appear in either order, and neither says anything about
+ * whether the coach starred the line.
+ */
+const LINE_FURNITURE = new RegExp(`^(?:\\[\\d{1,2}:\\d{2}\\]|${BULLET})\\s*`);
+
+function stripFurniture(line: string): string {
+  let out = line.trim();
+  for (;;) {
+    const next = out.replace(LINE_FURNITURE, "").trim();
+    if (next === out) return out;
+    out = next;
+  }
+}
+
+/**
+ * Feedback notes the coach flagged with a leading "*" (§7.1).
+ *
+ * The star has to be found underneath the stamp and the bullet, in whatever
+ * order they ended up: a coach types "- " to start a list, stamps the moment,
+ * and stars what matters, and the pipeline that turns starred notes into
+ * drafted takeaways must not quietly lose a line because a bullet got there
+ * first. Stripped repeatedly for the same reason.
  */
 export function extractStarred(feedback: string): string[] {
-  const stamp = /^\[\d{1,2}:\d{2}\]\s*/;
   return feedback
     .split("\n")
-    .map((line) => line.trim().replace(stamp, "").trim())
+    .map(stripFurniture)
     .filter((line) => line.startsWith("*"))
-    .map((line) => line.replace(/^\*+\s*/, "").replace(stamp, "").trim())
+    .map((line) => stripFurniture(line.replace(/^\*+\s*/, "")))
     .filter(Boolean);
 }

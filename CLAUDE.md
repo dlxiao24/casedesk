@@ -108,6 +108,18 @@ Current admins: `dlxiao@umich.edu`, `rishigar@umich.edu`. (`newsap97@gmail.com` 
   field that `beforeSend` never touches — so shared reports go uncounted, which is the price of the
   token being in the path. It is a wrapper rather than the bare component because `beforeSend` is a
   function and functions do not cross into a Client Component from the server.
+- **The bullet in a note is a literal character, not formatting.** "- " at the start of a line in
+  a note or feedback field becomes "• " (`src/lib/bullets.ts`), because these are plain textareas
+  whose text reaches a report as pre-wrapped content — there is no markup layer to interpret
+  anything richer. The consequence is that `extractStarred` has to find the coach's "*" underneath
+  both the bullet and the Cmd+Enter timestamp, in any order; if it does not, a starred note goes
+  silently missing from the drafted takeaways. Change the bullet character and that parser has to
+  change with it.
+- **Downloading a case's slides is coach-only.** `CaseView` takes `canDownload`, off by default,
+  and the guest case page does not pass it. A visitor may read a sample case on screen — that is
+  the shop window — without being handed a file of another school's casebook pages to keep. The
+  export copies only the case's own pages out of the casebook, in delivery order, in the browser
+  (`src/lib/slidesPdf.ts`); nothing is assembled on the server.
 - **`src/lib/loadReport.ts` is the single place session data becomes candidate-facing.** Interviewer
   guides, personal notes and case-quality ratings are excluded there. Anything new that reaches a
   candidate should go through it.
