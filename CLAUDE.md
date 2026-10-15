@@ -120,6 +120,13 @@ Current admins: `dlxiao@umich.edu`, `rishigar@umich.edu`. (`newsap97@gmail.com` 
   the shop window — without being handed a file of another school's casebook pages to keep. The
   export copies only the case's own pages out of the casebook, in delivery order, in the browser
   (`src/lib/slidesPdf.ts`); nothing is assembled on the server.
+- **The report PDF is built, not printed.** `src/lib/reportPdf.ts` typesets the same `ReportModel`
+  the page and the markdown copy render. Printing the screen put the browser's own header and
+  footer in the corners — a date, a time, the page URL — and none of that can be removed from the
+  page's stylesheet, because none of it belongs to the page. The toolbar's **Print** button is for
+  paper and still goes through the browser; **Download PDF** is the file to send. pdf-lib's
+  standard fonts are WinAnsi, so everything drawn goes through `sanitizeForPdf` first — a coach who
+  pastes an emoji should get a document, not a failed export.
 - **`src/lib/loadReport.ts` is the single place session data becomes candidate-facing.** Interviewer
   guides, personal notes and case-quality ratings are excluded there. Anything new that reaches a
   candidate should go through it.

@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { dimensionLabel } from "@/lib/constants";
+import { BULLET } from "@/lib/bullets";
 import type { ReportModel } from "@/lib/report";
 
 /**
@@ -80,11 +81,21 @@ export async function loadReportModel(
   };
 }
 
-/** The leading "*" is a coach's own flag, not something a candidate should read. */
+/**
+ * The leading "*" is a coach's own flag, not something a candidate should read.
+ *
+ * It has to be found underneath the line's furniture — the Cmd+Enter timestamp
+ * and the bullet "- " turns into — in whatever order they ended up, because a
+ * coach writing "• *led with findings" means the same thing they meant before
+ * bullets existed. Only the star is removed; the stamp and the bullet are the
+ * candidate's to read.
+ */
 function stripStars(text: string): string {
+  const furniture = `(?:\\s|\\[\\d{1,2}:\\d{2}\\]|${BULLET})*`;
+  const star = new RegExp(`^(${furniture})\\*+\\s*`);
   return text
     .split("\n")
-    .map((line) => line.replace(/^(\s*(?:\[\d{1,2}:\d{2}\]\s*)?)\*+\s*/, "$1"))
+    .map((line) => line.replace(star, "$1"))
     .join("\n");
 }
 

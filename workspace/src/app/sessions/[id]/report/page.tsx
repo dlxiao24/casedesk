@@ -57,6 +57,7 @@ export default async function ReportPage({
         isCoach={viewer.kind === "user"}
         candidateId={session.candidate.id}
         markdown={reportToMarkdown(model)}
+        model={model}
         /* Arriving from "Generate report" opens the dialog straight away. */
         openOptionsOnLoad={options === "1"}
       />

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { createShareLink, markShared, reopenSession, revokeShareLink } from "@/actions/sessions";
 import { ReportOptionsDialog, type ReportOptions } from "@/components/ReportOptionsDialog";
+import type { ReportModel } from "@/lib/report";
+import { DownloadReport } from "./DownloadReport";
 
 /**
  * Everything on this bar that puts the report in front of a candidate also
@@ -17,6 +19,7 @@ export function ReportToolbar({
   shareToken,
   candidateId,
   markdown,
+  model,
   openOptionsOnLoad = false,
   /**
    * A guest reaches this page for their own practice run, and nothing beyond
@@ -30,6 +33,7 @@ export function ReportToolbar({
   shareToken: string | null;
   candidateId: string;
   markdown: string;
+  model: ReportModel;
   openOptionsOnLoad?: boolean;
   isCoach: boolean;
 }) {
@@ -97,9 +101,23 @@ export function ReportToolbar({
               window.print();
             })
           }
+          title="Send this page to a printer. For a file to send, use Download PDF."
         >
-          Print / save PDF
+          Print
         </button>
+
+        {/* The way a report is meant to leave this page: a built document
+            rather than a screenshot of one. Locking happens once the file
+            exists, so a failed build does not lock the session. */}
+        <DownloadReport
+          model={model}
+          onDownloaded={() =>
+            start(async () => {
+              await markShared(sessionId);
+              router.refresh();
+            })
+          }
+        />
 
         {!isCoach ? null : link ? (
           <span className="flex items-center gap-1.5">

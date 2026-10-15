@@ -1,5 +1,6 @@
 import type { PDFDocument as PdfDoc, PDFFont } from "pdf-lib";
 import type { ViewSection } from "@/app/(app)/cases/[id]/CaseView";
+import { sanitizeForPdf, wrapToWidth } from "@/lib/pdfText";
 
 /**
  * Builds the case's slides into one downloadable PDF, in delivery order.
@@ -85,7 +86,7 @@ function drawTextSection(out: PdfDoc, section: ViewSection, fonts: Fonts) {
   let page = out.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   let y = PAGE_HEIGHT - MARGIN;
 
-  page.drawText(wrapToWidth(section.label, fonts.heading, 14, width)[0] ?? section.label, {
+  page.drawText(wrapToWidth(sanitizeForPdf(section.label), fonts.heading, 14, width)[0] ?? "", {
     x: MARGIN,
     y: y - 14,
     size: 14,
@@ -95,7 +96,7 @@ function drawTextSection(out: PdfDoc, section: ViewSection, fonts: Fonts) {
 
   // Blank lines are paragraph breaks and are kept; the text was written in a
   // textarea, so its line breaks are the only structure it has.
-  for (const paragraph of section.bodyText!.split("\n")) {
+  for (const paragraph of sanitizeForPdf(section.bodyText!).split("\n")) {
     const lines = paragraph.trim() ? wrapToWidth(paragraph, fonts.body, 11, width) : [""];
     for (const line of lines) {
       if (y < MARGIN + 11) {
@@ -108,42 +109,6 @@ function drawTextSection(out: PdfDoc, section: ViewSection, fonts: Fonts) {
       y -= 16;
     }
   }
-}
-
-/**
- * Greedy word wrap. A single word longer than the line is broken by character,
- * because pdf-lib's drawText does not wrap and would otherwise run the text
- * off the edge of the page.
- */
-function wrapToWidth(text: string, font: PDFFont, size: number, width: number): string[] {
-  const lines: string[] = [];
-  let line = "";
-
-  for (const word of text.replace(/\s+/g, " ").trim().split(" ")) {
-    const candidate = line ? `${line} ${word}` : word;
-    if (font.widthOfTextAtSize(candidate, size) <= width) {
-      line = candidate;
-      continue;
-    }
-    if (line) lines.push(line);
-    if (font.widthOfTextAtSize(word, size) <= width) {
-      line = word;
-      continue;
-    }
-    let chunk = "";
-    for (const character of word) {
-      if (font.widthOfTextAtSize(chunk + character, size) > width) {
-        lines.push(chunk);
-        chunk = character;
-      } else {
-        chunk += character;
-      }
-    }
-    line = chunk;
-  }
-
-  if (line) lines.push(line);
-  return lines.length > 0 ? lines : [""];
 }
 
 /** A filename a coach will recognise in their downloads folder. */
